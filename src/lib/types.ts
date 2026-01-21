@@ -49,3 +49,51 @@ export interface TimerState {
   remainingSeconds: number;
   totalSeconds: number;
 }
+
+// Voice Recording Types
+
+export interface RecordingMetadata {
+  id: string;
+  name: string;
+  createdAt: string; // ISO timestamp
+  durationSeconds: number;
+  topicId: string;
+  topicText: string;
+  frameworkId: string;
+  frameworkName: string;
+  speechDurationSetting: number;
+  fileSize: number; // bytes
+}
+
+export interface Recording extends RecordingMetadata {
+  transcript?: string;
+  analysis?: SpeechAnalysis;
+  analyzedAt?: string; // ISO timestamp
+}
+
+// AI Analysis Types
+
+export interface AnalysisSection {
+  score: number; // 1-10
+  feedback: string;
+  highlights?: string[]; // Specific quotes or moments
+}
+
+export interface SpeechAnalysis {
+  clarityAndStructure: AnalysisSection;
+  concisenessAndWordChoice: AnalysisSection;
+  emotionalResonance: AnalysisSection;
+  toneAndPresence: AnalysisSection;
+  audienceConnection: AnalysisSection;
+  improvements: string[]; // 3-5 concrete improvements
+  overallScore?: number; // 1-10 optional
+}
+
+// Recording State Types
+
+export interface RecordingState {
+  isRecording: boolean;
+  isPaused: boolean;
+  duration: number; // seconds
+  error: string | null;
+}

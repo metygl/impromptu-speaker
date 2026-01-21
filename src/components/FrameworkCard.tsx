@@ -33,7 +33,7 @@ export function FrameworkCard({
           {/* Step pills */}
           <div className="flex items-center gap-1">
             {framework.steps.map((step, index) => (
-              <div key={step.label} className="flex items-center">
+              <div key={index} className="flex items-center">
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-xs font-medium transition-colors',
@@ -66,7 +66,7 @@ export function FrameworkCard({
       <div
         className={cn(
           'overflow-hidden transition-all duration-300 ease-out',
-          isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+          isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
         <div className="border-t border-border px-4 pb-4 pt-3">
@@ -80,7 +80,7 @@ export function FrameworkCard({
           <div className="space-y-4">
             {framework.steps.map((step, index) => (
               <div
-                key={step.label}
+                key={index}
                 className={cn(
                   'rounded-lg border p-3 transition-colors',
                   currentStepIndex === index

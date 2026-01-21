@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
+interface UseLocalStorageReturn<T> {
+  value: T;
+  setValue: (value: T | ((prev: T) => T)) => void;
+  isHydrated: boolean;
+}
+
+export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void, boolean] {
   // State to store our value
   const [storedValue, setStoredValue] = useState<T>(initialValue);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -37,5 +43,5 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
     }
   }, [key]);
 
-  return [storedValue, setValue];
+  return [storedValue, setValue, isHydrated];
 }

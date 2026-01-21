@@ -1,17 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Play, Pause, RotateCcw, Shuffle, Home } from 'lucide-react';
+import { Play, Pause, RotateCcw, Shuffle, Home, Square } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Timer } from '@/components/Timer';
 import { TopicCard } from '@/components/TopicCard';
 import { FrameworkCard } from '@/components/FrameworkCard';
+import { RecordingIndicator } from '@/components/RecordingIndicator';
+import { SaveRecordingModal } from '@/components/SaveRecordingModal';
 import { frameworks } from '@/lib/data/frameworks';
 import { defaultDeck } from '@/lib/data/defaultTopics';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { useTimer } from '@/lib/hooks/useTimer';
 import { useAudio } from '@/lib/hooks/useAudio';
+import { useRecording } from '@/lib/hooks/useRecording';
+import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
 import { getRandomTopic, getRandomFrameworkFromList } from '@/lib/utils';
 import { Deck, PracticeSettings, Topic, Framework, PracticePhase } from '@/lib/types';
 
@@ -35,7 +39,23 @@ export default function PracticePage() {
   const [framework, setFramework] = useState<Framework | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
+  // Recording state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const hasStartedRecordingRef = useRef(false);
+
   const { play: playBell } = useAudio({ src: '/bell.mp3' });
+
+  // Recording hooks
+  const recording = useRecording({
+    onComplete: (blob, duration) => {
+      setRecordingBlob(blob);
+      setRecordingDuration(duration);
+    },
+  });
+
+  const { saveRecording } = useVoiceRecordings();
 
   // Get the current deck
   const allDecks = [defaultDeck, ...customDecks];
@@ -70,15 +90,25 @@ export default function PracticePage() {
       setPhase('speech');
       speechTimer.reset(settings.speechDurationSeconds);
       speechTimer.start();
+      // Start recording when speech phase begins
+      if (!hasStartedRecordingRef.current) {
+        hasStartedRecordingRef.current = true;
+        recording.start();
+      }
     },
   });
 
   // Speech timer
   const speechTimer = useTimer({
     initialSeconds: settings.speechDurationSeconds,
-    onComplete: () => {
+    onComplete: async () => {
       setPhase('done');
       playBell();
+      // Stop recording and show save modal
+      if (recording.isRecording) {
+        await recording.stop();
+        setShowSaveModal(true);
+      }
     },
   });
 
@@ -99,9 +129,28 @@ export default function PracticePage() {
     } else if (phase === 'speech') {
       if (speechTimer.isRunning) {
         speechTimer.pause();
+        // Pause recording when timer is paused
+        if (recording.isRecording && !recording.isPaused) {
+          recording.pause();
+        }
       } else {
         speechTimer.start();
+        // Resume recording when timer resumes
+        if (recording.isRecording && recording.isPaused) {
+          recording.resume();
+        }
       }
+    }
+  };
+
+  const handleEndEarly = async () => {
+    speechTimer.pause();
+    setPhase('done');
+    playBell();
+    // Stop recording and show save modal
+    if (recording.isRecording) {
+      await recording.stop();
+      setShowSaveModal(true);
     }
   };
 
@@ -110,9 +159,22 @@ export default function PracticePage() {
     setPhase('speech');
     speechTimer.reset(settings.speechDurationSeconds);
     speechTimer.start();
+    // Start recording when skipping to speech
+    if (!hasStartedRecordingRef.current) {
+      hasStartedRecordingRef.current = true;
+      recording.start();
+    }
   };
 
-  const handleNewTopic = () => {
+  const handleNewTopic = async () => {
+    // Stop any ongoing recording without saving
+    if (recording.isRecording) {
+      await recording.stop();
+    }
+    hasStartedRecordingRef.current = false;
+    setRecordingBlob(null);
+    setShowSaveModal(false);
+
     prepTimer.reset(settings.prepDurationSeconds);
     speechTimer.reset(settings.speechDurationSeconds);
     generateNew();
@@ -121,11 +183,43 @@ export default function PracticePage() {
     }, 100);
   };
 
-  const handleTryAgain = () => {
+  const handleTryAgain = async () => {
+    // Reset recording state for new attempt
+    if (recording.isRecording) {
+      await recording.stop();
+    }
+    hasStartedRecordingRef.current = false;
+    setRecordingBlob(null);
+    setShowSaveModal(false);
+
     setPhase('prep');
     prepTimer.reset(settings.prepDurationSeconds);
     speechTimer.reset(settings.speechDurationSeconds);
     prepTimer.start();
+  };
+
+  // Handle saving the recording
+  const handleSaveRecording = async (name: string) => {
+    if (!recordingBlob || !topic || !framework) return;
+
+    await saveRecording(recordingBlob, {
+      name,
+      topicId: topic.id,
+      topicText: topic.text,
+      frameworkId: framework.id,
+      frameworkName: framework.name,
+      speechDurationSetting: settings.speechDurationSeconds,
+      durationSeconds: recordingDuration,
+    });
+
+    setShowSaveModal(false);
+    setRecordingBlob(null);
+  };
+
+  // Handle discarding the recording
+  const handleDiscardRecording = () => {
+    setShowSaveModal(false);
+    setRecordingBlob(null);
   };
 
   if (!isHydrated || !topic || !framework) {
@@ -151,6 +245,17 @@ export default function PracticePage() {
         <div className="mx-auto w-full max-w-md flex-1">
           {/* Topic Card */}
           <TopicCard topic={topic} className="mt-4" />
+
+          {/* Recording indicator */}
+          {phase === 'speech' && recording.isRecording && (
+            <div className="flex justify-center">
+              <RecordingIndicator
+                duration={recording.duration}
+                isRecording={recording.isRecording}
+                isPaused={recording.isPaused}
+              />
+            </div>
+          )}
 
           {/* Timer */}
           <div className="my-8 flex justify-center">
@@ -221,11 +326,11 @@ export default function PracticePage() {
                 )}
               </button>
               <button
-                onClick={handleNewTopic}
-                className="btn btn-ghost"
+                onClick={handleEndEarly}
+                className="btn btn-primary flex-1"
               >
-                <Shuffle className="h-4 w-4" />
-                New Topic
+                <Square className="h-4 w-4" />
+                End Early
               </button>
             </>
           )}
@@ -250,6 +355,18 @@ export default function PracticePage() {
           )}
         </div>
       </div>
+
+      {/* Save Recording Modal */}
+      {topic && framework && (
+        <SaveRecordingModal
+          isOpen={showSaveModal}
+          topicText={topic.text}
+          frameworkName={framework.name}
+          duration={recordingDuration}
+          onSave={handleSaveRecording}
+          onDiscard={handleDiscardRecording}
+        />
+      )}
     </div>
   );
 }
