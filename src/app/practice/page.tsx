@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Play, Pause, RotateCcw, Shuffle, Home, Square } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Timer } from '@/components/Timer';
@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: PracticeSettings = {
 
 export default function PracticePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [customDecks] = useLocalStorage<Deck[]>('customDecks', []);
   const [settings] = useLocalStorage<PracticeSettings>(
     'practiceSettings',
@@ -44,6 +45,7 @@ export default function PracticePage() {
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const hasStartedRecordingRef = useRef(false);
+  const [untitledCounter, setUntitledCounter] = useLocalStorage<number>('untitledRecordingCounter', 1);
 
   const { play: playBell } = useAudio({ src: '/bell.mp3' });
 
@@ -57,15 +59,42 @@ export default function PracticePage() {
 
   const { saveRecording } = useVoiceRecordings();
 
+  // Show save modal when recording blob is set
+  useEffect(() => {
+    if (recordingBlob) {
+      setShowSaveModal(true);
+    }
+  }, [recordingBlob]);
+
   // Get the current deck
   const allDecks = [defaultDeck, ...customDecks];
   const currentDeck =
     allDecks.find((d) => d.id === settings.selectedDeckId) || defaultDeck;
 
-  // Initialize topic and framework
+  // Initialize topic and framework (check URL params for "Practice Again" feature)
   useEffect(() => {
     setIsHydrated(true);
-    generateNew();
+
+    // Check for URL params (from "Practice Again" button)
+    const topicId = searchParams.get('topicId');
+    const topicText = searchParams.get('topicText');
+    const frameworkId = searchParams.get('frameworkId');
+
+    if (topicId && topicText && frameworkId) {
+      // Use the specified topic and framework
+      setTopic({ id: topicId, text: topicText });
+      const specifiedFramework = frameworks.find((f) => f.id === frameworkId);
+      if (specifiedFramework) {
+        setFramework(specifiedFramework);
+      } else {
+        // Fallback to random if framework not found
+        generateNew();
+      }
+    } else {
+      // Generate random topic and framework
+      generateNew();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const generateNew = useCallback(() => {
@@ -104,10 +133,9 @@ export default function PracticePage() {
     onComplete: async () => {
       setPhase('done');
       playBell();
-      // Stop recording and show save modal
+      // Stop recording - auto-save will handle saving
       if (recording.isRecording) {
         await recording.stop();
-        setShowSaveModal(true);
       }
     },
   });
@@ -147,10 +175,9 @@ export default function PracticePage() {
     speechTimer.pause();
     setPhase('done');
     playBell();
-    // Stop recording and show save modal
+    // Stop recording - auto-save will handle saving
     if (recording.isRecording) {
       await recording.stop();
-      setShowSaveModal(true);
     }
   };
 
@@ -167,13 +194,11 @@ export default function PracticePage() {
   };
 
   const handleNewTopic = async () => {
-    // Stop any ongoing recording without saving
+    // Stop any ongoing recording - will auto-save if there's a blob
     if (recording.isRecording) {
       await recording.stop();
     }
     hasStartedRecordingRef.current = false;
-    setRecordingBlob(null);
-    setShowSaveModal(false);
 
     prepTimer.reset(settings.prepDurationSeconds);
     speechTimer.reset(settings.speechDurationSeconds);
@@ -189,8 +214,6 @@ export default function PracticePage() {
       await recording.stop();
     }
     hasStartedRecordingRef.current = false;
-    setRecordingBlob(null);
-    setShowSaveModal(false);
 
     setPhase('prep');
     prepTimer.reset(settings.prepDurationSeconds);
@@ -202,8 +225,11 @@ export default function PracticePage() {
   const handleSaveRecording = async (name: string) => {
     if (!recordingBlob || !topic || !framework) return;
 
+    // Use provided name or default to Untitled-#
+    const recordingName = name.trim() || `Untitled-${untitledCounter}`;
+
     await saveRecording(recordingBlob, {
-      name,
+      name: recordingName,
       topicId: topic.id,
       topicText: topic.text,
       frameworkId: framework.id,
@@ -211,6 +237,11 @@ export default function PracticePage() {
       speechDurationSetting: settings.speechDurationSeconds,
       durationSeconds: recordingDuration,
     });
+
+    // Only increment counter if we used the default name
+    if (!name.trim()) {
+      setUntitledCounter(untitledCounter + 1);
+    }
 
     setShowSaveModal(false);
     setRecordingBlob(null);
@@ -282,8 +313,15 @@ export default function PracticePage() {
           {phase === 'prep' && (
             <>
               <button
+                onClick={handleNewTopic}
+                className="btn btn-secondary"
+                title="New topic & framework"
+              >
+                <Shuffle className="h-4 w-4" />
+              </button>
+              <button
                 onClick={handlePauseResume}
-                className="btn btn-secondary flex-1"
+                className="btn btn-secondary flex-1 whitespace-nowrap"
               >
                 {prepTimer.isRunning ? (
                   <>
@@ -299,10 +337,10 @@ export default function PracticePage() {
               </button>
               <button
                 onClick={handleSkipToSpeech}
-                className="btn btn-primary flex-1"
+                className="btn btn-primary flex-1 whitespace-nowrap"
               >
                 <Play className="h-4 w-4" />
-                Start Speaking
+                Start
               </button>
             </>
           )}
@@ -311,7 +349,7 @@ export default function PracticePage() {
             <>
               <button
                 onClick={handlePauseResume}
-                className="btn btn-secondary flex-1"
+                className="btn btn-secondary flex-1 whitespace-nowrap"
               >
                 {speechTimer.isRunning ? (
                   <>
@@ -327,10 +365,10 @@ export default function PracticePage() {
               </button>
               <button
                 onClick={handleEndEarly}
-                className="btn btn-primary flex-1"
+                className="btn btn-primary flex-1 whitespace-nowrap"
               >
                 <Square className="h-4 w-4" />
-                End Early
+                End
               </button>
             </>
           )}
@@ -339,17 +377,17 @@ export default function PracticePage() {
             <>
               <button
                 onClick={handleTryAgain}
-                className="btn btn-secondary flex-1"
+                className="btn btn-secondary flex-1 whitespace-nowrap"
               >
                 <RotateCcw className="h-4 w-4" />
-                Same Topic
+                Retry
               </button>
               <button
                 onClick={handleNewTopic}
-                className="btn btn-primary flex-1"
+                className="btn btn-primary flex-1 whitespace-nowrap"
               >
                 <Shuffle className="h-4 w-4" />
-                New Topic
+                New
               </button>
             </>
           )}
@@ -363,6 +401,7 @@ export default function PracticePage() {
           topicText={topic.text}
           frameworkName={framework.name}
           duration={recordingDuration}
+          defaultName={`Untitled-${untitledCounter}`}
           onSave={handleSaveRecording}
           onDiscard={handleDiscardRecording}
         />

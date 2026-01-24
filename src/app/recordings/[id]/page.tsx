@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Sparkles, FileText, Clock, Calendar } from 'lucide-react';
+import { Trash2, Sparkles, FileText, Clock, Calendar, RotateCcw } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { TranscriptionProgress } from '@/components/TranscriptionProgress';
@@ -40,6 +40,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -52,6 +53,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
     if (isHookLoading) return;
 
     let mounted = true;
+    let objectUrl: string | null = null;
 
     const loadRecording = async () => {
       setIsLoading(true);
@@ -59,6 +61,9 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
       if (mounted && data) {
         setRecording(data.metadata);
         setAudioBlob(data.blob);
+        // Create object URL for audio playback
+        objectUrl = URL.createObjectURL(data.blob);
+        setAudioUrl(objectUrl);
       }
       if (mounted) {
         setIsLoading(false);
@@ -69,6 +74,10 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
 
     return () => {
       mounted = false;
+      // Clean up object URL
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isHookLoading]);
@@ -198,9 +207,9 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
           </div>
 
           {/* Audio player */}
-          {audioBlob && (
+          {audioUrl && (
             <div className="mt-6">
-              <AudioPlayer blob={audioBlob} />
+              <AudioPlayer url={audioUrl} />
             </div>
           )}
 
@@ -357,8 +366,25 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
             </div>
           )}
 
-          {/* Delete button */}
-          <div className="mt-8 border-t border-border pt-6">
+          {/* Action buttons */}
+          <div className="mt-8 border-t border-border pt-6 space-y-3">
+            {/* Practice Again button */}
+            <button
+              onClick={() => {
+                const params = new URLSearchParams({
+                  topicId: recording.topicId,
+                  topicText: recording.topicText,
+                  frameworkId: recording.frameworkId,
+                });
+                router.push(`/practice?${params.toString()}`);
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Practice Again
+            </button>
+
+            {/* Delete button */}
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}

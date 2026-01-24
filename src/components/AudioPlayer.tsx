@@ -36,18 +36,30 @@ export function AudioPlayer({ blob, url, className }: AudioPlayerProps) {
 
   const progressBarRef = useRef<HTMLDivElement>(null);
 
+  // Use refs to always have access to the latest functions
+  const loadRef = useRef(load);
+  const loadUrlRef = useRef(loadUrl);
+  const unloadRef = useRef(unload);
+
+  // Keep refs updated
+  useEffect(() => {
+    loadRef.current = load;
+    loadUrlRef.current = loadUrl;
+    unloadRef.current = unload;
+  });
+
   // Load audio when blob or url changes
   useEffect(() => {
     if (blob) {
-      load(blob);
+      loadRef.current(blob);
     } else if (url) {
-      loadUrl(url);
+      loadUrlRef.current(url);
     }
 
     return () => {
-      unload();
+      unloadRef.current();
     };
-  }, [blob, url, load, loadUrl, unload]);
+  }, [blob, url]);
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current || !isLoaded) return;
@@ -86,21 +98,24 @@ export function AudioPlayer({ blob, url, className }: AudioPlayerProps) {
 
         {/* Progress section */}
         <div className="flex-1">
-          {/* Progress bar */}
+          {/* Progress bar - wrapper with larger click area */}
           <div
             ref={progressBarRef}
             onClick={handleProgressClick}
-            className="group relative h-2 cursor-pointer rounded-full bg-border"
+            className="group relative flex h-6 cursor-pointer items-center"
           >
+            {/* Visible track */}
+            <div className="h-2 w-full rounded-full bg-border" />
+
             {/* Progress fill */}
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all"
+              className="pointer-events-none absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-accent transition-all"
               style={{ width: `${progress * 100}%` }}
             />
 
             {/* Scrubber handle */}
             <div
-              className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-accent opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+              className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-accent opacity-0 shadow-md transition-opacity group-hover:opacity-100"
               style={{ left: `calc(${progress * 100}% - 8px)` }}
             />
           </div>

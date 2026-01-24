@@ -64,7 +64,7 @@ describe('SaveRecordingModal', () => {
     expect(onSave).toHaveBeenCalledWith('My Recording');
   });
 
-  it('should call onSave with default name if input is empty', async () => {
+  it('should call onSave with empty string if input is empty (parent handles default)', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
 
@@ -73,10 +73,8 @@ describe('SaveRecordingModal', () => {
     const saveButton = screen.getByRole('button', { name: /save/i });
     await user.click(saveButton);
 
-    // Should use default name pattern
-    expect(onSave).toHaveBeenCalled();
-    const calledWith = onSave.mock.calls[0][0];
-    expect(calledWith).toContain('PREP');
+    // Should pass empty string - parent component handles default naming
+    expect(onSave).toHaveBeenCalledWith('');
   });
 
   it('should call onDiscard when discard button is clicked', async () => {

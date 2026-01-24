@@ -9,6 +9,7 @@ interface SaveRecordingModalProps {
   topicText: string;
   frameworkName: string;
   duration: number; // seconds
+  defaultName?: string;
   onSave: (name: string) => void;
   onDiscard: () => void;
 }
@@ -18,6 +19,7 @@ export function SaveRecordingModal({
   topicText,
   frameworkName,
   duration,
+  defaultName = 'Untitled',
   onSave,
   onDiscard,
 }: SaveRecordingModalProps) {
@@ -31,13 +33,10 @@ export function SaveRecordingModal({
   const seconds = duration % 60;
   const durationDisplay = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-  // Generate a default name suggestion
-  const defaultName = `${frameworkName} - ${new Date().toLocaleDateString()}`;
-
   const handleSave = async () => {
     setIsSaving(true);
-    const recordingName = name.trim() || defaultName;
-    onSave(recordingName);
+    // Pass the name to parent - parent will use defaultName if empty
+    onSave(name);
   };
 
   return (
@@ -92,7 +91,7 @@ export function SaveRecordingModal({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={defaultName}
+            placeholder={`${defaultName} (default)`}
             className="mt-1.5 w-full rounded-lg border border-border bg-bg-primary px-3 py-2.5 text-text-primary placeholder:text-text-secondary/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             autoFocus
           />
