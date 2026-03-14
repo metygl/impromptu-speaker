@@ -20,8 +20,8 @@ test.describe('Recordings Page', () => {
   test('should have a button to start practicing', async ({ page }) => {
     await page.goto('/recordings');
 
-    // Should have a "Start Practice" button (goes to /setup)
-    const practiceButton = page.locator('button:has-text("Start Practice")');
+    // Should have a forward CTA for starting a new session.
+    const practiceButton = page.getByRole('button', { name: 'Start a New Session' });
     await expect(practiceButton).toBeVisible();
   });
 
@@ -139,9 +139,10 @@ test.describe('Navigation', () => {
     // Verify we're on recordings page
     await expect(page.locator('header')).toContainText('Recordings');
 
-    // Click back button
-    const backButton = page.locator('header button').first();
-    await backButton.click();
+    // Navigation should be menu-driven instead of using a top-left back affordance.
+    await expect(page.locator('header button')).toHaveCount(1);
+    await page.locator('header button').click();
+    await page.click('nav >> text=Home');
     await expect(page).toHaveURL('/');
   });
 });
@@ -149,6 +150,8 @@ test.describe('Navigation', () => {
 test.describe('Home Page', () => {
   test('should show app title and start button', async ({ page }) => {
     await page.goto('/');
+
+    await expect(page.locator('header')).toBeVisible();
 
     // Should have the app name
     await expect(page.locator('h1:has-text("Impromptu")')).toBeVisible();

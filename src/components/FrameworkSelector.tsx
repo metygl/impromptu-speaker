@@ -1,6 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
+import { SectionCard } from '@/components/SectionCard';
 import { Framework } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -22,19 +23,20 @@ export function FrameworkSelector({
   const allSelected = selectedIds.length === frameworks.length;
 
   return (
-    <div className={className}>
-      <div className="mb-3 flex items-center justify-between">
-        <label className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-          Frameworks
-        </label>
+    <SectionCard
+      className={className}
+      eyebrow="Step 2"
+      title="Frameworks"
+      description="Pick the speaking structures you want available when a prompt is generated."
+      action={
         <button
           onClick={onSelectAll}
           className="text-xs font-medium text-accent hover:text-accent-hover"
         >
           {allSelected ? 'Deselect all' : 'Select all'}
         </button>
-      </div>
-
+      }
+    >
       <div className="flex flex-wrap gap-2">
         {frameworks.map((framework) => {
           const isSelected = selectedIds.includes(framework.id);
@@ -62,6 +64,6 @@ export function FrameworkSelector({
           Select at least one framework
         </p>
       )}
-    </div>
+    </SectionCard>
   );
 }

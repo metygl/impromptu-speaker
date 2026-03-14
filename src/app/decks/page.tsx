@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Layers, Trash2, ChevronRight, Lock } from 'lucide-react';
+import { Plus, Layers, Trash2, ChevronRight, Lock, Mic } from 'lucide-react';
+import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
+import { PageIntro } from '@/components/PageIntro';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { defaultDeck, generateDeckId } from '@/lib/data/defaultTopics';
 import { Deck } from '@/lib/types';
@@ -51,12 +53,18 @@ export default function DecksPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title="Topic Decks" showBack backHref="/" />
+      <Header title="Topic Decks" />
 
       <div className="flex-1 px-4 pb-24">
         <div className="mx-auto max-w-md py-6">
+          <PageIntro
+            eyebrow="Library"
+            title="Topic decks"
+            description="Organize prompts into reusable decks, then use them in the practice flow whenever you want a different mix."
+          />
+
           {/* Deck list */}
-          <div className="space-y-3">
+          <div className="mt-8 space-y-3">
             {allDecks.map((deck) => (
               <div
                 key={deck.id}
@@ -120,6 +128,13 @@ export default function DecksPage() {
             <Plus className="h-5 w-5" />
             Create New Deck
           </button>
+
+          <FlowActions description="Once your decks look right, jump straight into a fresh practice run.">
+            <Link href="/setup" className="btn btn-primary w-full justify-center">
+              <Mic className="h-4 w-4" />
+              Start a New Session
+            </Link>
+          </FlowActions>
         </div>
       </div>
 

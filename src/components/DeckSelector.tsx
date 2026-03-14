@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, Layers } from 'lucide-react';
+import { SectionCard } from '@/components/SectionCard';
 import { Deck } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
@@ -37,39 +38,38 @@ export function DeckSelector({
 
   return (
     <div className={cn('relative', className)} ref={dropdownRef}>
-      <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-text-secondary">
-        Topic Deck
-      </label>
-
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between rounded-xl border border-border bg-white p-4 text-left transition-colors hover:border-border-strong"
+      <SectionCard
+        eyebrow="Step 1"
+        title="Topic deck"
+        description="Choose the prompt pool you want to draw from for this round."
       >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-bg-secondary">
-            <Layers className="h-5 w-5 text-text-secondary" />
-          </div>
-          <div>
-            <div className="font-medium text-text-primary">
-              {selectedDeck.name}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-bg-secondary/60 p-4 text-left transition-colors hover:border-border-strong hover:bg-bg-secondary"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+              <Layers className="h-5 w-5 text-text-secondary" />
             </div>
-            <div className="text-sm text-text-secondary">
-              {selectedDeck.topics.length} topics
+            <div>
+              <div className="font-medium text-text-primary">{selectedDeck.name}</div>
+              <div className="text-sm text-text-secondary">
+                {selectedDeck.topics.length} topics
+              </div>
             </div>
           </div>
-        </div>
-
-        <ChevronDown
-          className={cn(
-            'h-5 w-5 text-text-secondary transition-transform',
-            isOpen && 'rotate-180'
-          )}
-        />
-      </button>
+          <ChevronDown
+            className={cn(
+              'h-5 w-5 text-text-secondary transition-transform',
+              isOpen && 'rotate-180'
+            )}
+          />
+        </button>
+      </SectionCard>
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-10 mt-2 w-full rounded-xl border border-border bg-white py-2 shadow-lg">
+        <div className="absolute z-10 mt-2 w-full rounded-2xl border border-border bg-white py-2 shadow-lg">
           {decks.map((deck) => (
             <button
               key={deck.id}

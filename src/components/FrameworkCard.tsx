@@ -19,16 +19,19 @@ export function FrameworkCard({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={cn('card overflow-hidden', className)}>
+    <div className={cn('card paper-texture overflow-hidden rounded-3xl', className)}>
       {/* Header - always visible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-bg-secondary"
+        className="flex w-full items-center justify-between p-5 text-left transition-colors hover:bg-bg-secondary"
       >
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-text-primary">
-            {framework.name}
-          </span>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-text-secondary">Framework</p>
+            <span className="mt-2 block text-lg font-semibold text-text-primary">
+              {framework.name}
+            </span>
+          </div>
 
           {/* Step pills */}
           <div className="flex items-center gap-1">
@@ -69,7 +72,7 @@ export function FrameworkCard({
           isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        <div className="border-t border-border px-4 pb-4 pt-3">
+        <div className="border-t border-border px-5 pb-5 pt-4">
           {/* Best for */}
           <p className="mb-4 text-sm text-text-secondary">
             <span className="font-medium text-text-primary">Best for: </span>

@@ -1,17 +1,15 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Mail, Chrome } from 'lucide-react';
+import { Chrome } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, isLoading, isConfigured, signInWithGoogle, signInWithMagicLink } = useAuth();
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
+  const { user, isLoading, isConfigured, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -20,24 +18,6 @@ export default function LoginPage() {
       router.replace('/');
     }
   }, [isLoading, router, user]);
-
-  const handleMagicLink = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    setMessage(null);
-
-    const result = await signInWithMagicLink(email.trim());
-
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setMessage('Magic link sent. Check your inbox to finish signing in.');
-      setEmail('');
-    }
-
-    setIsSubmitting(false);
-  };
 
   const handleGoogle = async () => {
     setIsSubmitting(true);
@@ -51,7 +31,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title="Sign In" showBack backHref="/" />
+      <Header title="Sign In" />
 
       <div className="flex flex-1 items-center px-4 py-8">
         <div className="mx-auto w-full max-w-md rounded-[28px] border border-border bg-white p-6 shadow-[0_16px_60px_rgba(26,26,24,0.08)]">
@@ -82,45 +62,12 @@ export default function LoginPage() {
                 Continue with Google
               </button>
 
-              <div className="mt-6 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-text-secondary">
-                <div className="h-px flex-1 bg-border" />
-                <span>or</span>
-                <div className="h-px flex-1 bg-border" />
+              <div className="mt-6 rounded-xl border border-border bg-bg-secondary p-4 text-sm text-text-secondary">
+                Google sign-in is the only enabled login method for this demo.
+                Magic-link email will stay off until a real domain and SMTP provider are in place.
               </div>
-
-              <form onSubmit={handleMagicLink} className="mt-6 space-y-3">
-                <label className="block text-sm font-medium text-text-secondary" htmlFor="email">
-                  Email magic link
-                </label>
-                <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
-                  <Mail className="h-4 w-4 text-text-secondary" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-secondary/60"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn btn-secondary w-full justify-center"
-                >
-                  <ArrowRight className="h-4 w-4" />
-                  Send magic link
-                </button>
-              </form>
             </>
           )}
-
-          {message ? (
-            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              {message}
-            </div>
-          ) : null}
 
           {error ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Plus, Trash2, GripVertical, Lock } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Trash2, Lock, Layers, Mic } from 'lucide-react';
+import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
+import { PageIntro } from '@/components/PageIntro';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { defaultDeck, generateTopicId } from '@/lib/data/defaultTopics';
 import { Deck, Topic } from '@/lib/types';
@@ -100,20 +103,26 @@ export default function EditDeckPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title={deck.name} showBack backHref="/decks" />
+      <Header title={deck.name} />
 
       <div className="flex-1 px-4 pb-24">
         <div className="mx-auto max-w-md py-6">
+          <PageIntro
+            eyebrow={isDefaultDeck ? 'Built in' : 'Custom deck'}
+            title={deck.name}
+            description={`${deck.topics.length} topic${deck.topics.length === 1 ? '' : 's'} available${isDefaultDeck ? '. This deck is read-only.' : '. Add, edit, or remove prompts below.'}`}
+          />
+
           {/* Read-only notice for default deck */}
           {isDefaultDeck && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-bg-secondary p-3 text-sm text-text-secondary">
+            <div className="mb-4 mt-6 flex items-center gap-2 rounded-lg bg-bg-secondary p-3 text-sm text-text-secondary">
               <Lock className="h-4 w-4" />
               This is the default deck and cannot be edited.
             </div>
           )}
 
           {/* Topics list */}
-          <div className="space-y-2">
+          <div className="mt-6 space-y-2">
             {deck.topics.map((topic, index) => (
               <div
                 key={topic.id}
@@ -216,6 +225,17 @@ export default function EditDeckPage() {
               </div>
             </div>
           )}
+
+          <FlowActions description="Use this deck in your next round or head back to the full deck list.">
+            <Link href="/setup" className="btn btn-primary w-full justify-center">
+              <Mic className="h-4 w-4" />
+              Start a New Session
+            </Link>
+            <Link href="/decks" className="btn btn-secondary w-full justify-center">
+              <Layers className="h-4 w-4" />
+              All Decks
+            </Link>
+          </FlowActions>
         </div>
       </div>
     </div>

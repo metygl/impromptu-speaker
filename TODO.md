@@ -6,17 +6,24 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 
 ## Immediate Testing
 
-- [ ] Add `OPENAI_API_KEY` to `.env.local`
-- [ ] Add `OPENAI_EVAL_MODEL` to `.env.local`
-- [ ] Restart `npm run dev` after env changes
+- [x] Add `OPENAI_API_KEY` to `.env.local`
+- [x] Add `OPENAI_EVAL_MODEL` to `.env.local`
+- [x] Restart `npm run dev` after env changes
 - [ ] Sign in with Google locally
 - [ ] Confirm signed-in UI appears in the header/menu
 - [ ] Run a full practice session while signed in
 - [ ] Confirm local microphone recording starts during speech
-- [ ] Confirm local transcription runs after clicking `Transcribe & Analyze`
+- [ ] Confirm the save-recording prompt appears after speech ends
+- [ ] Confirm saving locally redirects to `/recordings/[id]`
+- [ ] Confirm local playback works on the recording detail page
+- [ ] Confirm local transcription runs after clicking `Transcribe & Analyze` on `/recordings/[id]`
 - [ ] Confirm AI analysis completes successfully
-- [ ] Confirm redirect to `/feedback/[id]`
+- [ ] Confirm the recording detail page links to saved feedback or `/feedback/[id]`
 - [ ] Confirm the new result appears in `/feedback`
+- [ ] Confirm the feedback detail page shows the local recording when it still exists on this device
+- [ ] Confirm the feedback detail page shows the "no local recording" state when audio is unavailable
+- [ ] Confirm deleting feedback removes the remote session and returns to `/feedback`
+- [ ] Confirm deleting feedback does not remove the local recording audio
 - [ ] Confirm Supabase `speech_feedback` gets a row
 - [ ] Confirm Supabase `analysis_attempts` gets a row
 - [ ] Confirm the daily limit blocks the 4th analysis attempt
@@ -24,6 +31,8 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 
 ## Local QA / Manual Checks
 
+- [ ] Test the persistent menu flow across home, setup, practice, recordings, decks, and feedback
+- [ ] Test the new bottom-of-page CTA sections on mobile for spacing and scroll behavior
 - [ ] Test the first-time Whisper model download experience in Chrome
 - [ ] Test microphone permission denial flow
 - [ ] Test analysis failure messaging when OpenAI env vars are missing or invalid
@@ -63,12 +72,16 @@ Current recommendation:
 
 ## Product / Code Cleanup
 
-- [ ] Decide whether the old `/recordings` pages should be removed, hidden, or repurposed for the shared-demo architecture
-- [ ] Decide whether local audio should remain accessible anywhere in v1 or stay session-only
+- [x] Repurpose `/recordings` as the local-only review flow for saved recordings
+- [x] Keep local audio accessible via browser-only saved recordings, not remote storage
 - [ ] Add tests for the authenticated analysis API route
+- [x] Add tests for the feedback delete API route
 - [ ] Add tests for feedback history loading
 - [ ] Add tests for daily quota enforcement
-- [ ] Add tests for auth-gated UI behavior
+- [x] Add tests for auth-gated UI behavior
+- [x] Align the main app routes around persistent menu navigation plus forward CTAs
+- [ ] Consider whether feedback detail should link back to a matching local recording detail page when both exist
+- [ ] Consider adding a shared card/section component for more of the remaining detail surfaces
 
 ## Existing Repo Cleanup Not Caused By This Rollout
 

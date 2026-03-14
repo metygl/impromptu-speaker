@@ -45,3 +45,42 @@ export async function GET(_request: Request, context: RouteContext) {
     );
   }
 }
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: existingFeedback, error: lookupError } = await supabase
+      .from('speech_feedback')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (lookupError || !existingFeedback) {
+      return NextResponse.json({ error: 'Feedback not found' }, { status: 404 });
+    }
+
+    const { error: deleteError } = await supabase.from('speech_feedback').delete().eq('id', id);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to delete feedback',
+      },
+      { status: 500 }
+    );
+  }
+}

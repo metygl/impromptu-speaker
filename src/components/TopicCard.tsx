@@ -12,7 +12,7 @@ export function TopicCard({ topic, className }: TopicCardProps) {
   return (
     <div
       className={cn(
-        'card paper-texture relative overflow-hidden p-8',
+        'card paper-texture relative overflow-hidden rounded-3xl p-8 shadow-[0_10px_40px_rgba(26,26,24,0.06)]',
         className
       )}
     >
@@ -20,7 +20,7 @@ export function TopicCard({ topic, className }: TopicCardProps) {
       <div className="absolute inset-x-0 top-0 h-1 bg-accent" />
 
       {/* Topic label */}
-      <span className="text-xs font-medium uppercase tracking-widest text-text-secondary">
+      <span className="text-xs font-medium uppercase tracking-[0.18em] text-text-secondary">
         Your Topic
       </span>
 

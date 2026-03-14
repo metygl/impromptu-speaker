@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { PageIntro } from '@/components/PageIntro';
 import { DeckSelector } from '@/components/DeckSelector';
 import { FrameworkSelector } from '@/components/FrameworkSelector';
 import { TimerSelector } from '@/components/TimerSelector';
@@ -74,10 +75,16 @@ export default function SetupPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title="Setup" showBack backHref="/" />
+      <Header title="Setup" />
 
       <div className="flex-1 overflow-y-auto px-4 pb-32">
         <div className="mx-auto max-w-md space-y-8 py-6">
+          <PageIntro
+            eyebrow="Practice flow"
+            title="Set up your next round"
+            description="Choose a deck, narrow the frameworks if you want, and set your speaking time before generating a topic."
+          />
+
           {/* Deck Selection */}
           <DeckSelector
             decks={allDecks}

@@ -20,9 +20,14 @@ Ship a public demo of Impromptu Speaker that:
 
 - Next.js app router application
 - Anonymous users can access the core practice flow
+- Global navigation now uses a persistent top-right menu across the app
+- Main pages favor forward CTAs and bottom-of-page "what next" actions over top-left back navigation
 - Signed-in users can record locally during speeches
+- Signed-in users are prompted to name and save recordings locally after each speech
+- Saved local recordings can be replayed and analyzed from `/recordings/[id]`
 - Signed-in users can transcribe locally and submit transcript-only analysis
 - Feedback history is available through `/feedback`
+- Feedback history is intentionally minimal; transcript and full analysis live on `/feedback/[id]`
 
 ### Auth
 
@@ -51,6 +56,9 @@ Ship a public demo of Impromptu Speaker that:
 - Google sign-in working on localhost
 - Analysis endpoint replaced old local `codex exec` flow
 - Feedback history pages added
+- Feedback detail page supports deleting saved remote feedback without deleting local audio
+- Main app navigation simplified to a persistent menu plus forward-flow page actions
+- Shared page-intro, section-card, and flow-action UI patterns added across setup, decks, recordings, and feedback
 - Privacy and terms pages added
 - Production build fixed to use webpack explicitly
 - Setup and testing trackers added in [SETUP.md](/Users/metygl/Projects/PlanProject/impromptu-speaker/SETUP.md) and [TODO.md](/Users/metygl/Projects/PlanProject/impromptu-speaker/TODO.md)
@@ -63,6 +71,8 @@ Ship a public demo of Impromptu Speaker that:
 - Test the end-to-end signed-in analysis flow
 - Verify Supabase rows are written correctly
 - Verify daily quota behavior
+- Manually validate the new menu-first navigation flow on mobile
+- Manually validate feedback deletion against linked local recordings on this device
 
 ### Before Public Sharing
 
@@ -76,7 +86,6 @@ Ship a public demo of Impromptu Speaker that:
 
 - Decide whether public magic-link login is needed
 - If needed, add custom SMTP with a real sending domain
-- Decide whether old `/recordings` pages should be removed or repurposed
 - Add automated coverage for auth-gated behavior and quotas
 
 ## Key Decisions
@@ -84,9 +93,12 @@ Ship a public demo of Impromptu Speaker that:
 - Keep anonymous practice available without auth
 - Require auth only for AI-related features
 - Keep audio local; do not upload audio for the demo
+- Store local recordings only in browser storage, not in Supabase
 - Use transcript-only evaluation to reduce cost
 - Use a configurable global daily limit, default `3`
 - Prefer Google-only login for now
+- Keep global navigation menu-driven and persistent across pages
+- Keep feedback history lightweight; reserve transcript and full critique for the detail page
 
 ## Canonical Working Docs
 

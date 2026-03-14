@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Mic, Settings, Layers, Sparkles, Lock } from 'lucide-react';
+import { Header } from '@/components/Header';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function Home() {
@@ -9,8 +10,10 @@ export default function Home() {
 
   return (
     <div className="flex min-h-dvh flex-col">
+      <Header />
+
       {/* Hero Section */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-12 pt-20">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-12 pt-12">
         {/* Logo/Icon */}
         <div className="mb-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-accent/10">
           <Mic className="h-10 w-10 text-accent" />

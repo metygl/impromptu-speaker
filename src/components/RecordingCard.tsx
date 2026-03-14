@@ -79,7 +79,7 @@ export function RecordingCard({
     <div
       onClick={onClick}
       className={cn(
-        'group relative rounded-xl border border-border bg-white p-4 transition-all',
+        'group card relative rounded-2xl p-4 transition-all',
         onClick && 'cursor-pointer hover:border-border-strong hover:shadow-sm',
         className
       )}

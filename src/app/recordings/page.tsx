@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mic, HardDrive } from 'lucide-react';
+import Link from 'next/link';
+import { Mic, HardDrive, Sparkles } from 'lucide-react';
+import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
+import { PageIntro } from '@/components/PageIntro';
 import { RecordingCard } from '@/components/RecordingCard';
 import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
 import { useAudioPlayback } from '@/lib/hooks/useAudioPlayback';
@@ -84,7 +87,7 @@ export default function RecordingsPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <Header title="Recordings" showBack onBack={() => router.push('/')} />
+        <Header title="Recordings" />
         <div className="flex flex-1 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
@@ -94,12 +97,18 @@ export default function RecordingsPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title="Recordings" showBack onBack={() => router.push('/')} />
+      <Header title="Recordings" />
 
       <div className="flex-1 px-4 pb-8">
         <div className="mx-auto w-full max-w-2xl">
+          <PageIntro
+            eyebrow="Local review"
+            title="Recordings"
+            description="Saved recordings stay on this device. Reopen one for playback, transcription, and AI feedback."
+          />
+
           {/* Storage info */}
-          <div className="mt-4 flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
+          <div className="mt-5 flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
             <div className="flex items-center gap-2 text-sm text-text-secondary">
               <HardDrive className="h-4 w-4" />
               <span>Storage used</span>
@@ -111,19 +120,35 @@ export default function RecordingsPage() {
 
           {/* Recordings list */}
           {recordings.length > 0 ? (
-            <div className="mt-6 space-y-3">
-              {recordings.map((recording) => (
-                <RecordingCard
-                  key={recording.id}
-                  recording={recording}
-                  isPlaying={playingId === recording.id && audioPlayback.isPlaying}
-                  onPlay={() => handlePlay(recording.id)}
-                  onPause={handlePause}
-                  onDelete={() => handleDelete(recording.id)}
-                  onClick={() => handleCardClick(recording.id)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="mt-6 space-y-3">
+                {recordings.map((recording) => (
+                  <RecordingCard
+                    key={recording.id}
+                    recording={recording}
+                    isPlaying={playingId === recording.id && audioPlayback.isPlaying}
+                    onPlay={() => handlePlay(recording.id)}
+                    onPause={handlePause}
+                    onDelete={() => handleDelete(recording.id)}
+                    onClick={() => handleCardClick(recording.id)}
+                  />
+                ))}
+              </div>
+
+              <FlowActions description="Start another round or switch to your saved AI feedback without hunting through the menu.">
+                <button
+                  onClick={() => router.push('/setup')}
+                  className="btn btn-primary w-full justify-center"
+                >
+                  <Mic className="h-4 w-4" />
+                  Start a New Session
+                </button>
+                <Link href="/feedback" className="btn btn-secondary w-full justify-center">
+                  <Sparkles className="h-4 w-4" />
+                  View Feedback History
+                </Link>
+              </FlowActions>
+            </>
           ) : (
             /* Empty state */
             <div className="mt-16 flex flex-col items-center text-center">
@@ -141,7 +166,7 @@ export default function RecordingsPage() {
                 onClick={() => router.push('/setup')}
                 className="btn btn-primary mt-6"
               >
-                Start Practice
+                Start a New Session
               </button>
             </div>
           )}

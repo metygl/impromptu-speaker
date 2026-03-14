@@ -1,14 +1,28 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2, Sparkles, FileText, Clock, Calendar, RotateCcw } from 'lucide-react';
+import {
+  Trash2,
+  Sparkles,
+  FileText,
+  Clock,
+  Calendar,
+  RotateCcw,
+  Mic,
+  History,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { Header } from '@/components/Header';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { SpeechAnalysisView } from '@/components/SpeechAnalysisView';
 import { TranscriptionProgress } from '@/components/TranscriptionProgress';
+import { useAuth } from '@/components/AuthProvider';
 import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
 import { useTranscription } from '@/lib/hooks/useTranscription';
-import { Recording, SpeechAnalysis } from '@/lib/types';
+import { Recording } from '@/lib/types';
 
 interface RecordingDetailPageProps {
   params: Promise<{ id: string }>;
@@ -35,7 +49,9 @@ function formatDate(isoString: string): string {
 export default function RecordingDetailPage({ params }: RecordingDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const { recordings, getRecording, deleteRecording, updateRecording, isLoading: isHookLoading } = useVoiceRecordings();
+  const { user } = useAuth();
+  const { recordings, getRecording, deleteRecording, updateRecording, isLoading: isHookLoading } =
+    useVoiceRecordings();
   const { transcribe, progress: transcriptionProgress } = useTranscription();
 
   const [recording, setRecording] = useState<Recording | null>(null);
@@ -44,12 +60,13 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisStep, setAnalysisStep] = useState<'idle' | 'transcribing' | 'analyzing' | 'complete' | 'error'>('idle');
+  const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState<
+    'idle' | 'transcribing' | 'analyzing' | 'complete' | 'error'
+  >('idle');
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
-  // Load recording data - wait for hook to be ready first
   useEffect(() => {
-    // Don't try to load until the hook is ready
     if (isHookLoading) return;
 
     let mounted = true;
@@ -61,7 +78,6 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
       if (mounted && data) {
         setRecording(data.metadata);
         setAudioBlob(data.blob);
-        // Create object URL for audio playback
         objectUrl = URL.createObjectURL(data.blob);
         setAudioUrl(objectUrl);
       }
@@ -74,7 +90,6 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
 
     return () => {
       mounted = false;
-      // Clean up object URL
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
@@ -82,14 +97,18 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isHookLoading]);
 
-  // Update recording metadata when it changes in the list (e.g., after analysis)
   useEffect(() => {
-    const updated = recordings.find((r) => r.id === id);
-    if (updated && recording && updated.analyzedAt !== recording.analyzedAt) {
+    const updated = recordings.find((entry) => entry.id === id);
+    if (!updated || !recording) return;
+
+    if (
+      updated.analyzedAt !== recording.analyzedAt ||
+      updated.transcript !== recording.transcript ||
+      updated.feedbackId !== recording.feedbackId
+    ) {
       setRecording(updated);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordings, id]);
+  }, [id, recording, recordings]);
 
   const handleDelete = async () => {
     await deleteRecording(id);
@@ -97,20 +116,19 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
   };
 
   const handleAnalyze = async () => {
-    if (!audioBlob || !recording) return;
+    if (!audioBlob || !recording || !user) return;
 
     setIsAnalyzing(true);
     setAnalysisError(null);
     setAnalysisStep('transcribing');
 
     try {
-      // Step 1: Transcribe the audio
       const transcript = await transcribe(audioBlob);
+      const transcriptUpdates = { transcript };
 
-      // Update recording with transcript
-      await updateRecording(id, { transcript });
+      await updateRecording(id, transcriptUpdates);
+      setRecording((current) => (current ? { ...current, ...transcriptUpdates } : current));
 
-      // Step 2: Analyze with Codex
       setAnalysisStep('analyzing');
 
       const response = await fetch('/api/analyze', {
@@ -120,23 +138,25 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
           transcript,
           topic: recording.topicText,
           framework: recording.frameworkName,
+          frameworkId: recording.frameworkId,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Analysis failed');
+        throw new Error(data.error || 'Analysis failed');
       }
 
-      const { analysis } = await response.json();
-
-      // Update recording with analysis
-      await updateRecording(id, {
+      const nextUpdates = {
         transcript,
-        analysis,
+        analysis: data.analysis,
         analyzedAt: new Date().toISOString(),
-      });
+        feedbackId: data.feedbackId,
+      };
 
+      await updateRecording(id, nextUpdates);
+      setRecording((current) => (current ? { ...current, ...nextUpdates } : current));
       setAnalysisStep('complete');
     } catch (error) {
       console.error('Analysis error:', error);
@@ -150,7 +170,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
   if (isLoading || isHookLoading) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <Header title="Recording" showBack onBack={() => router.push('/recordings')} />
+        <Header title="Recording" />
         <div className="flex flex-1 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
@@ -161,7 +181,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
   if (!recording) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <Header title="Recording" showBack onBack={() => router.push('/recordings')} />
+        <Header title="Recording" />
         <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
           <h2 className="font-display text-xl font-medium text-text-primary">
             Recording not found
@@ -180,21 +200,19 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
     );
   }
 
-  const hasAnalysis = !!recording.analysis;
-  const hasTranscript = !!recording.transcript;
+  const hasAnalysis = Boolean(recording.analysis);
+  const hasTranscript = Boolean(recording.transcript);
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title="Recording" showBack onBack={() => router.push('/recordings')} />
+      <Header title="Recording" />
 
       <div className="flex-1 px-4 pb-8">
         <div className="mx-auto w-full max-w-2xl">
-          {/* Recording name */}
           <h1 className="mt-6 font-display text-2xl font-medium text-text-primary">
             {recording.name}
           </h1>
 
-          {/* Metadata */}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-text-secondary">
             <span className="flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
@@ -206,15 +224,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
             </span>
           </div>
 
-          {/* Audio player */}
-          {audioUrl && (
-            <div className="mt-6">
-              <AudioPlayer url={audioUrl} />
-            </div>
-          )}
-
-          {/* Topic and Framework */}
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-border bg-white p-4">
               <span className="text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Topic
@@ -226,149 +236,115 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
               <span className="text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Framework
               </span>
-              <p className="mt-2 font-medium text-text-primary">
-                {recording.frameworkName}
-              </p>
+              <p className="mt-2 font-medium text-text-primary">{recording.frameworkName}</p>
             </div>
           </div>
 
-          {/* Analyze section */}
-          {!hasAnalysis && (
-            <div className="mt-6">
-              {/* Progress indicator */}
-              {isAnalyzing && (
-                <div className="mb-4">
-                  {analysisStep === 'transcribing' && (
+          {audioUrl ? (
+            <div className="mt-6 rounded-2xl border border-border bg-white p-5">
+              <AudioPlayer url={audioUrl} />
+            </div>
+          ) : null}
+
+          {!hasAnalysis ? (
+            <div className="mt-6 rounded-2xl border border-border bg-white p-5">
+              {isAnalyzing ? (
+                <div>
+                  {analysisStep === 'transcribing' ? (
                     <TranscriptionProgress
                       status={transcriptionProgress.status}
                       modelProgress={transcriptionProgress.modelProgress}
                       transcriptionProgress={transcriptionProgress.transcriptionProgress}
                       message={transcriptionProgress.message}
                     />
-                  )}
-                  {analysisStep === 'analyzing' && (
+                  ) : (
                     <TranscriptionProgress
                       status="transcribing"
                       message="Analyzing transcript with AI..."
                     />
                   )}
                 </div>
-              )}
+              ) : null}
 
-              {/* Error display */}
-              {analysisError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
-                  <p className="text-sm text-red-600">{analysisError}</p>
-                  <button
-                    onClick={() => setAnalysisError(null)}
-                    className="mt-2 text-sm font-medium text-red-500 hover:text-red-600"
-                  >
-                    Dismiss
-                  </button>
+              {analysisError ? (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {analysisError}
                 </div>
-              )}
+              ) : null}
 
-              {/* Analyze button */}
-              {!isAnalyzing && (
+              {!user ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  Sign in to request AI feedback for this local recording.
+                  <div className="mt-3">
+                    <Link href="/login" className="font-medium text-accent hover:text-accent-hover">
+                      Go to sign in
+                    </Link>
+                  </div>
+                </div>
+              ) : (
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || !audioBlob}
                   className="btn btn-primary w-full justify-center"
                 >
                   <Sparkles className="h-4 w-4" />
-                  Transcribe & Analyze
+                  {isAnalyzing ? 'Analyzing...' : 'Transcribe & Analyze'}
                 </button>
               )}
             </div>
-          )}
+          ) : null}
 
-          {/* Transcript section */}
-          {hasTranscript && (
+          {hasTranscript ? (
             <div className="mt-6">
-              <h2 className="flex items-center gap-2 font-display text-lg font-medium text-text-primary">
-                <FileText className="h-5 w-5" />
-                Transcript
-              </h2>
-              <div className="mt-3 rounded-xl border border-border bg-white p-4">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
-                  {recording.transcript}
-                </p>
-              </div>
-            </div>
-          )}
+              <button
+                onClick={() => setIsTranscriptOpen((current) => !current)}
+                className="flex w-full items-center justify-between rounded-xl border border-border bg-white p-4 text-left transition-colors hover:bg-bg-secondary"
+              >
+                <span className="flex items-center gap-2 font-display text-lg font-medium text-text-primary">
+                  <FileText className="h-5 w-5" />
+                  Transcript
+                </span>
+                {isTranscriptOpen ? (
+                  <ChevronUp className="h-5 w-5 text-text-secondary" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-text-secondary" />
+                )}
+              </button>
 
-          {/* Analysis section */}
-          {hasAnalysis && recording.analysis && (
-            <div className="mt-6">
-              <h2 className="flex items-center gap-2 font-display text-lg font-medium text-text-primary">
-                <Sparkles className="h-5 w-5" />
-                Analysis
-              </h2>
-
-              {/* Overall score */}
-              {recording.analysis.overallScore && (
-                <div className="mt-3 flex items-center justify-center rounded-xl bg-accent-subtle p-4">
-                  <div className="text-center">
-                    <span className="text-4xl font-bold text-accent">
-                      {recording.analysis.overallScore}
-                    </span>
-                    <span className="text-lg text-accent">/10</span>
-                    <p className="mt-1 text-sm text-text-secondary">Overall Score</p>
-                  </div>
+              {isTranscriptOpen ? (
+                <div className="mt-3 rounded-xl border border-border bg-white p-4">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-primary">
+                    {recording.transcript}
+                  </p>
                 </div>
-              )}
+              ) : null}
+            </div>
+          ) : null}
 
-              {/* Analysis sections */}
-              <div className="mt-4 space-y-3">
-                {[
-                  { key: 'clarityAndStructure', label: 'Clarity & Structure' },
-                  { key: 'concisenessAndWordChoice', label: 'Conciseness & Word Choice' },
-                  { key: 'emotionalResonance', label: 'Emotional Resonance' },
-                  { key: 'toneAndPresence', label: 'Tone & Presence' },
-                  { key: 'audienceConnection', label: 'Audience Connection' },
-                ].map(({ key, label }) => {
-                  const section = recording.analysis![key as keyof typeof recording.analysis] as {
-                    score: number;
-                    feedback: string;
-                  };
-                  if (!section || typeof section !== 'object') return null;
-
-                  return (
-                    <div key={key} className="rounded-xl border border-border bg-white p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-text-primary">{label}</span>
-                        <span className="rounded-full bg-bg-secondary px-2 py-0.5 text-sm font-medium">
-                          {section.score}/10
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-text-secondary">{section.feedback}</p>
-                    </div>
-                  );
-                })}
+          {hasAnalysis && recording.analysis ? (
+            <div className="mt-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 font-display text-lg font-medium text-text-primary">
+                  <Sparkles className="h-5 w-5" />
+                  AI Feedback
+                </h2>
+                {recording.feedbackId ? (
+                  <button
+                    onClick={() => router.push(`/feedback/${recording.feedbackId}`)}
+                    className="text-sm font-medium text-accent hover:text-accent-hover"
+                  >
+                    Open saved feedback
+                  </button>
+                ) : null}
               </div>
 
-              {/* Improvements */}
-              {recording.analysis.improvements && recording.analysis.improvements.length > 0 && (
-                <div className="mt-4 rounded-xl border border-border bg-white p-4">
-                  <span className="font-medium text-text-primary">Key Improvements</span>
-                  <ul className="mt-3 space-y-2">
-                    {recording.analysis.improvements.map((improvement, index) => (
-                      <li key={index} className="flex gap-2 text-sm text-text-secondary">
-                        <span className="flex-shrink-0 font-medium text-accent">
-                          {index + 1}.
-                        </span>
-                        {improvement}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <div className="mt-4">
+                <SpeechAnalysisView analysis={recording.analysis} />
+              </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Action buttons */}
           <div className="mt-8 border-t border-border pt-6 space-y-3">
-            {/* Practice Again button */}
             <button
               onClick={() => {
                 const params = new URLSearchParams({
@@ -378,13 +354,28 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
                 });
                 router.push(`/practice?${params.toString()}`);
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
             >
               <RotateCcw className="h-4 w-4" />
               Practice Again
             </button>
 
-            {/* Delete button */}
+            <button
+              onClick={() => router.push('/setup')}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+            >
+              <Mic className="h-4 w-4" />
+              Start New Practice
+            </button>
+
+            <Link
+              href="/feedback"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+            >
+              <History className="h-4 w-4" />
+              View Past Feedback
+            </Link>
+
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}

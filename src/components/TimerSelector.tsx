@@ -1,6 +1,7 @@
 'use client';
 
 import { Minus, Plus } from 'lucide-react';
+import { SectionCard } from '@/components/SectionCard';
 import { cn } from '@/lib/utils';
 
 interface TimerSelectorProps {
@@ -40,11 +41,12 @@ export function TimerSelector({
   ];
 
   return (
-    <div className={className}>
-      <label className="mb-3 block text-xs font-medium uppercase tracking-wider text-text-secondary">
-        Speech Duration
-      </label>
-
+    <SectionCard
+      className={className}
+      eyebrow="Step 3"
+      title="Speech duration"
+      description="Set how long you want to speak before the timer ends the round."
+    >
       <div className="flex items-center justify-center gap-4">
         <button
           onClick={decrease}
@@ -70,8 +72,7 @@ export function TimerSelector({
         </button>
       </div>
 
-      {/* Presets */}
-      <div className="mt-4 flex justify-center gap-2">
+      <div className="mt-1 flex justify-center gap-2">
         {presets.map((preset) => (
           <button
             key={preset.value}
@@ -87,6 +88,6 @@ export function TimerSelector({
           </button>
         ))}
       </div>
-    </div>
+    </SectionCard>
   );
 }

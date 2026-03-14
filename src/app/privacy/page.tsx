@@ -3,7 +3,7 @@ import { Header } from '@/components/Header';
 export default function PrivacyPage() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <Header title="Privacy" showBack backHref="/" />
+      <Header title="Privacy" />
 
       <div className="flex-1 px-4 pb-8">
         <div className="mx-auto mt-6 max-w-2xl rounded-3xl border border-border bg-white p-6">

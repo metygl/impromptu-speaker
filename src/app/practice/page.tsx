@@ -9,15 +9,15 @@ import {
   RotateCcw,
   Shuffle,
   Square,
-  Sparkles,
   Lock,
+  Save,
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Timer } from '@/components/Timer';
 import { TopicCard } from '@/components/TopicCard';
 import { FrameworkCard } from '@/components/FrameworkCard';
 import { RecordingIndicator } from '@/components/RecordingIndicator';
-import { TranscriptionProgress } from '@/components/TranscriptionProgress';
+import { SaveRecordingModal } from '@/components/SaveRecordingModal';
 import { useAuth } from '@/components/AuthProvider';
 import { frameworks } from '@/lib/data/frameworks';
 import { defaultDeck } from '@/lib/data/defaultTopics';
@@ -25,7 +25,7 @@ import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { useTimer } from '@/lib/hooks/useTimer';
 import { useAudio } from '@/lib/hooks/useAudio';
 import { useRecording } from '@/lib/hooks/useRecording';
-import { useTranscription } from '@/lib/hooks/useTranscription';
+import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
 import { getRandomTopic, getRandomFrameworkFromList } from '@/lib/utils';
 import { Deck, PracticeSettings, Topic, Framework, PracticePhase } from '@/lib/types';
 
@@ -36,13 +36,20 @@ const DEFAULT_SETTINGS: PracticeSettings = {
   prepDurationSeconds: 60,
 };
 
-type AnalysisStep = 'idle' | 'transcribing' | 'analyzing' | 'complete' | 'error';
+function buildDefaultRecordingName(topicText: string, frameworkName: string): string {
+  const trimmedTopic = topicText.trim().replace(/\s+/g, ' ');
+  const shortTopic =
+    trimmedTopic.length > 48 ? `${trimmedTopic.slice(0, 45).trimEnd()}...` : trimmedTopic;
+
+  return `${frameworkName} - ${shortTopic}`;
+}
 
 export default function PracticePage() {
   const router = useRouter();
   const { user } = useAuth();
   const [customDecks] = useLocalStorage<Deck[]>('customDecks', []);
   const [settings] = useLocalStorage<PracticeSettings>('practiceSettings', DEFAULT_SETTINGS);
+  const { saveRecording, isLoading: isRecordingsLoading, error: recordingsError } = useVoiceRecordings();
 
   const [phase, setPhase] = useState<PracticePhase>('prep');
   const [topic, setTopic] = useState<Topic | null>(null);
@@ -50,14 +57,12 @@ export default function PracticePage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisStep, setAnalysisStep] = useState<AnalysisStep>('idle');
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const hasStartedRecordingRef = useRef(false);
 
   const { play: playBell } = useAudio({ src: '/bell.mp3' });
-  const { transcribe, progress: transcriptionProgress } = useTranscription();
 
   const isAiEnabled = Boolean(user);
 
@@ -65,18 +70,19 @@ export default function PracticePage() {
     onComplete: (blob, duration) => {
       setRecordingBlob(blob);
       setRecordingDuration(duration);
+      setSaveError(null);
+      setIsSaveModalOpen(true);
     },
   });
 
   const allDecks = [defaultDeck, ...customDecks];
   const currentDeck = allDecks.find((d) => d.id === settings.selectedDeckId) || defaultDeck;
 
-  const resetAnalysisState = useCallback(() => {
+  const resetRecordingState = useCallback(() => {
     setRecordingBlob(null);
     setRecordingDuration(0);
-    setIsAnalyzing(false);
-    setAnalysisStep('idle');
-    setAnalysisError(null);
+    setIsSaveModalOpen(false);
+    setSaveError(null);
   }, []);
 
   const generateNew = useCallback(() => {
@@ -92,8 +98,8 @@ export default function PracticePage() {
     setTopic(newTopic);
     setFramework(newFramework);
     setPhase('prep');
-    resetAnalysisState();
-  }, [currentDeck, resetAnalysisState, settings.selectedFrameworkIds]);
+    resetRecordingState();
+  }, [currentDeck, resetRecordingState, settings.selectedFrameworkIds]);
 
   const beginSpeechRecording = useCallback(() => {
     if (!isAiEnabled || hasStartedRecordingRef.current) {
@@ -125,6 +131,12 @@ export default function PracticePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!recordingsError) return;
+
+    setSaveError(recordingsError);
+  }, [recordingsError]);
 
   const prepTimer = useTimer({
     initialSeconds: settings.prepDurationSeconds,
@@ -219,53 +231,44 @@ export default function PracticePage() {
     }
 
     hasStartedRecordingRef.current = false;
-    resetAnalysisState();
+    resetRecordingState();
     setPhase('prep');
     prepTimer.reset(settings.prepDurationSeconds);
     speechTimer.reset(settings.speechDurationSeconds);
     prepTimer.start();
   };
 
-  const handleAnalyze = async () => {
+  const handleSaveRecording = async (name: string) => {
     if (!recordingBlob || !topic || !framework) {
       return;
     }
 
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-    setAnalysisStep('transcribing');
+    const defaultName = buildDefaultRecordingName(topic.text, framework.name);
 
     try {
-      const transcript = await transcribe(recordingBlob);
-      setAnalysisStep('analyzing');
-
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          transcript,
-          topic: topic.text,
-          framework: framework.name,
-          frameworkId: framework.id,
-        }),
+      const recordingId = await saveRecording(recordingBlob, {
+        name: name.trim() || defaultName,
+        topicId: topic.id,
+        topicText: topic.text,
+        frameworkId: framework.id,
+        frameworkName: framework.name,
+        speechDurationSetting: settings.speechDurationSeconds,
+        durationSeconds: recordingDuration,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Analysis failed');
-      }
-
-      setAnalysisStep('complete');
-      router.push(`/feedback/${data.feedbackId}`);
+      setIsSaveModalOpen(false);
+      router.push(`/recordings/${recordingId}`);
     } catch (error) {
-      setAnalysisStep('error');
-      setAnalysisError(error instanceof Error ? error.message : 'Analysis failed');
-    } finally {
-      setIsAnalyzing(false);
+      setSaveError(error instanceof Error ? error.message : 'Failed to save recording');
+      throw error;
     }
+  };
+
+  const handleDiscardRecording = () => {
+    setIsSaveModalOpen(false);
+    setSaveError(null);
+    setRecordingBlob(null);
+    setRecordingDuration(0);
   };
 
   if (!isHydrated || !topic || !framework) {
@@ -283,8 +286,6 @@ export default function PracticePage() {
     <div className="flex min-h-dvh flex-col">
       <Header
         title={phase === 'done' ? 'Complete!' : undefined}
-        showBack
-        onBack={() => router.push('/setup')}
       />
 
       <div className="flex flex-1 flex-col px-4 pb-32">
@@ -342,52 +343,40 @@ export default function PracticePage() {
             <div className="mt-6 space-y-4 rounded-3xl border border-border bg-white p-5">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-text-secondary">
-                  AI Feedback
+                  Review Flow
                 </p>
                 <h2 className="mt-2 font-display text-2xl text-text-primary">
-                  Analyze this speech
+                  Save this local recording
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                  Audio stayed local. The app will transcribe in your browser, then upload only the transcript for evaluation.
+                  Name the recording, save it locally on this device, and continue to the review
+                  page for playback and AI feedback.
                 </p>
               </div>
 
-              {analysisStep === 'transcribing' ? (
-                <TranscriptionProgress
-                  status={transcriptionProgress.status}
-                  modelProgress={transcriptionProgress.modelProgress}
-                  transcriptionProgress={transcriptionProgress.transcriptionProgress}
-                  message={transcriptionProgress.message}
-                />
-              ) : null}
-
-              {analysisStep === 'analyzing' ? (
-                <TranscriptionProgress
-                  status="transcribing"
-                  message="Analyzing transcript with AI..."
-                />
-              ) : null}
-
-              {analysisError ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  {analysisError}
-                </div>
-              ) : null}
-
               {recordingBlob ? (
                 <button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing}
+                  onClick={() => {
+                    setSaveError(null);
+                    setIsSaveModalOpen(true);
+                  }}
+                  disabled={isRecordingsLoading}
                   className="btn btn-primary w-full justify-center"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  {isAnalyzing ? 'Analyzing...' : 'Transcribe & Analyze'}
+                  <Save className="h-4 w-4" />
+                  {isRecordingsLoading ? 'Preparing local storage...' : 'Name & Save Recording'}
                 </button>
               ) : (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                  No local recording was captured for this session, so there is nothing to analyze.
+                  No local recording was captured for this session, so there is nothing to save.
                 </div>
               )}
+
+              {saveError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {saveError}
+                </div>
+              ) : null}
 
               {recordingDuration > 0 ? (
                 <p className="text-xs text-text-secondary">
@@ -398,6 +387,19 @@ export default function PracticePage() {
           ) : null}
         </div>
       </div>
+
+      {phase === 'done' ? (
+        <SaveRecordingModal
+          isOpen={isSaveModalOpen}
+          topicText={topic.text}
+          frameworkName={framework.name}
+          duration={recordingDuration}
+          defaultName={buildDefaultRecordingName(topic.text, framework.name)}
+          error={saveError}
+          onSave={handleSaveRecording}
+          onDiscard={handleDiscardRecording}
+        />
+      ) : null}
 
       <div className="safe-bottom fixed bottom-0 left-0 right-0 border-t border-border bg-white px-4 py-4">
         <div className="mx-auto flex max-w-md items-center justify-center gap-3">
@@ -468,7 +470,7 @@ export default function PracticePage() {
             <>
               <button
                 onClick={handleTryAgain}
-                disabled={isAnalyzing}
+                disabled={isSaveModalOpen}
                 className="btn btn-secondary flex-1 whitespace-nowrap disabled:opacity-50"
               >
                 <RotateCcw className="h-4 w-4" />
@@ -476,7 +478,7 @@ export default function PracticePage() {
               </button>
               <button
                 onClick={handleNewTopic}
-                disabled={isAnalyzing}
+                disabled={isSaveModalOpen}
                 className="btn btn-primary flex-1 whitespace-nowrap disabled:opacity-50"
               >
                 <Shuffle className="h-4 w-4" />
