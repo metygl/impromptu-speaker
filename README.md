@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Impromptu Speaker
+
+Impromptu Speaker is a mobile-first speaking practice app built with Next.js. Anonymous users can practice with topic decks, frameworks, and timers. Signed-in users can also record locally, transcribe locally, and submit transcript-only AI analysis with a daily usage cap.
 
 ## Getting Started
 
-First, run the development server:
+1. Copy `.env.example` to `.env.local`.
+2. Configure Supabase auth and database.
+3. Apply [supabase/schema.sql](/Users/metygl/Projects/PlanProject/impromptu-speaker/supabase/schema.sql) in your Supabase SQL editor.
+4. Set `OPENAI_API_KEY` and `OPENAI_EVAL_MODEL`.
+5. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+OPENAI_API_KEY=...
+OPENAI_EVAL_MODEL=...
+DAILY_ANALYSIS_LIMIT=3
+MAX_TRANSCRIPT_CHARS=12000
+```
 
-## Learn More
+## Shared Demo Behavior
 
-To learn more about Next.js, take a look at the following resources:
+- Anonymous users: practice only
+- Signed-in users: local audio recording, local transcription, remote transcript evaluation
+- Remote storage: transcript, evaluation, metadata, and daily usage records
+- Audio is not uploaded for the shared demo
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Commands
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev
+npm run build
+npm test
+```
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Development and production both use webpack because the local Whisper transcription dependency is not compatible with the default Turbopack path in this app.
+- The shared analysis route requires authenticated Supabase sessions and the `speech_feedback` / `analysis_attempts` tables from the provided SQL schema.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy
+
+Deploy the app to Vercel after Supabase and environment variables are configured.

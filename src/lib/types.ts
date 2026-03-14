@@ -89,6 +89,19 @@ export interface SpeechAnalysis {
   overallScore?: number; // 1-10 optional
 }
 
+export interface SpeechFeedbackRecord {
+  id: string;
+  createdAt: string;
+  topicText: string;
+  frameworkId: string | null;
+  frameworkName: string;
+  transcript: string;
+  analysis: SpeechAnalysis;
+  overallScore: number | null;
+  transcriptCharCount: number;
+  promptVersion: string | null;
+}
+
 // Recording State Types
 
 export interface RecordingState {

@@ -1,71 +1,105 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { buildAnalysisPrompt } from '@/lib/constants/prompts';
-import { SpeechAnalysis } from '@/lib/types';
-
-const execAsync = promisify(exec);
-
-// Timeout for codex command (60 seconds)
-const CODEX_TIMEOUT = 60000;
+import OpenAI from 'openai';
+import { ANALYSIS_PROMPT_VERSION, buildAnalysisInput, normalizeTranscript, parseAnalysisResponse } from '@/lib/analysis';
+import { assertServerRuntimeConfig } from '@/lib/env';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 interface AnalyzeRequest {
   transcript: string;
   topic: string;
   framework: string;
+  frameworkId?: string | null;
 }
 
-function parseAnalysisResponse(output: string): SpeechAnalysis {
-  // Try to extract JSON from the output
-  // The output might contain additional text before/after the JSON
+async function reserveAnalysisAttempt(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  transcriptCharCount: number,
+  dailyLimit: number
+) {
+  const rpcResult = await supabase.rpc('reserve_analysis_attempt', {
+    p_daily_limit: dailyLimit,
+    p_transcript_char_count: transcriptCharCount,
+  });
 
-  // First, try to find JSON object in the output
-  const jsonMatch = output.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('No JSON found in response');
+  if (!rpcResult.error && rpcResult.data) {
+    const data = Array.isArray(rpcResult.data) ? rpcResult.data[0] : rpcResult.data;
+    if (data?.attempt_id) {
+      return {
+        attemptId: String(data.attempt_id),
+        remainingToday: Number(data.remaining_today ?? 0),
+      };
+    }
   }
 
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
 
-    // Validate the structure
-    const analysis: SpeechAnalysis = {
-      clarityAndStructure: {
-        score: Number(parsed.clarityAndStructure?.score) || 5,
-        feedback: String(parsed.clarityAndStructure?.feedback || 'No feedback provided'),
-      },
-      concisenessAndWordChoice: {
-        score: Number(parsed.concisenessAndWordChoice?.score) || 5,
-        feedback: String(parsed.concisenessAndWordChoice?.feedback || 'No feedback provided'),
-      },
-      emotionalResonance: {
-        score: Number(parsed.emotionalResonance?.score) || 5,
-        feedback: String(parsed.emotionalResonance?.feedback || 'No feedback provided'),
-      },
-      toneAndPresence: {
-        score: Number(parsed.toneAndPresence?.score) || 5,
-        feedback: String(parsed.toneAndPresence?.feedback || 'No feedback provided'),
-      },
-      audienceConnection: {
-        score: Number(parsed.audienceConnection?.score) || 5,
-        feedback: String(parsed.audienceConnection?.feedback || 'No feedback provided'),
-      },
-      improvements: Array.isArray(parsed.improvements)
-        ? parsed.improvements.map(String)
-        : ['Work on clarity', 'Practice more', 'Be more concise'],
-      overallScore: Number(parsed.overallScore) || 5,
-    };
+  const { count, error: countError } = await supabase
+    .from('analysis_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfDay.toISOString())
+    .in('status', ['reserved', 'succeeded', 'failed_after_model']);
 
-    return analysis;
-  } catch (e) {
-    throw new Error(`Failed to parse JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
+  if (countError) {
+    throw new Error(countError.message);
   }
+
+  if ((count ?? 0) >= dailyLimit) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('analysis_attempts')
+    .insert({
+      user_id: userId,
+      status: 'reserved',
+      transcript_char_count: transcriptCharCount,
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || 'Failed to reserve analysis attempt');
+  }
+
+  return {
+    attemptId: String(data.id),
+    remainingToday: Math.max(dailyLimit - ((count ?? 0) + 1), 0),
+  };
+}
+
+async function updateAnalysisAttempt(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  attemptId: string | null,
+  updates: Record<string, unknown>
+) {
+  if (!attemptId) return;
+
+  await supabase.from('analysis_attempts').update(updates).eq('id', attemptId);
 }
 
 export async function POST(request: Request) {
+  let attemptId: string | null = null;
+  let modelInvoked = false;
+
   try {
+    const config = assertServerRuntimeConfig();
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'You must be signed in to analyze a speech.' },
+        { status: 401 }
+      );
+    }
+
     const body: AnalyzeRequest = await request.json();
-    const { transcript, topic, framework } = body;
+    const { transcript, topic, framework, frameworkId = null } = body;
 
     if (!transcript || !topic || !framework) {
       return NextResponse.json(
@@ -74,74 +108,104 @@ export async function POST(request: Request) {
       );
     }
 
-    // Build the prompt
-    const prompt = buildAnalysisPrompt(transcript, topic, framework);
+    const normalizedTopic = topic.trim().slice(0, 240);
+    const normalizedFramework = framework.trim().slice(0, 120);
+    const normalizedTranscript = normalizeTranscript(
+      transcript,
+      config.maxTranscriptChars
+    );
 
-    // Escape the prompt for shell
-    // We'll write it to a temp file to avoid shell escaping issues
-    const fs = await import('fs/promises');
-    const os = await import('os');
-    const path = await import('path');
-
-    const tempDir = os.tmpdir();
-    const promptFile = path.join(tempDir, `codex-prompt-${Date.now()}.txt`);
-
-    await fs.writeFile(promptFile, prompt, 'utf-8');
-
-    try {
-      // Run codex exec with the prompt file
-      const { stdout, stderr } = await execAsync(
-        `codex exec "$(cat '${promptFile}')"`,
-        {
-          timeout: CODEX_TIMEOUT,
-          maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-          shell: '/bin/bash',
-        }
+    if (!normalizedTopic || !normalizedFramework || !normalizedTranscript.transcript) {
+      return NextResponse.json(
+        { error: 'Transcript, topic, and framework must contain text.' },
+        { status: 400 }
       );
-
-      // Clean up temp file
-      await fs.unlink(promptFile).catch(() => {});
-
-      if (stderr && !stdout) {
-        console.error('Codex stderr:', stderr);
-        return NextResponse.json(
-          { error: `Codex error: ${stderr}` },
-          { status: 500 }
-        );
-      }
-
-      // Parse the response
-      const analysis = parseAnalysisResponse(stdout);
-
-      return NextResponse.json({ analysis });
-    } catch (execError: any) {
-      // Clean up temp file on error
-      await fs.unlink(promptFile).catch(() => {});
-
-      if (execError.code === 'ENOENT') {
-        return NextResponse.json(
-          {
-            error: 'Codex CLI not found. Please ensure Codex is installed and available in your PATH.',
-            code: 'CODEX_NOT_FOUND',
-          },
-          { status: 500 }
-        );
-      }
-
-      if (execError.killed) {
-        return NextResponse.json(
-          {
-            error: 'Analysis timed out. The transcript may be too long.',
-            code: 'TIMEOUT',
-          },
-          { status: 504 }
-        );
-      }
-
-      throw execError;
     }
+
+    const reservation = await reserveAnalysisAttempt(
+      supabase,
+      user.id,
+      normalizedTranscript.transcript.length,
+      config.dailyAnalysisLimit
+    );
+
+    if (!reservation) {
+      return NextResponse.json(
+        {
+          error: `Daily analysis limit reached. Try again tomorrow.`,
+          code: 'DAILY_LIMIT_REACHED',
+        },
+        { status: 429 }
+      );
+    }
+
+    attemptId = reservation.attemptId;
+
+    const client = new OpenAI({ apiKey: config.openAiApiKey });
+    modelInvoked = true;
+
+    const response = await client.responses.create({
+      model: config.evalModel,
+      input: buildAnalysisInput(
+        normalizedTranscript.transcript,
+        normalizedTopic,
+        normalizedFramework
+      ),
+    });
+
+    const output = response.output_text?.trim();
+    if (!output) {
+      throw new Error('The model returned an empty response.');
+    }
+
+    const analysis = parseAnalysisResponse(output);
+
+    const { data: feedbackRow, error: insertError } = await supabase
+      .from('speech_feedback')
+      .insert({
+        user_id: user.id,
+        topic_text: normalizedTopic,
+        framework_id: frameworkId,
+        framework_name: normalizedFramework,
+        transcript: normalizedTranscript.transcript,
+        analysis_json: analysis,
+        overall_score: analysis.overallScore ?? null,
+        transcript_char_count: normalizedTranscript.transcript.length,
+        prompt_version: ANALYSIS_PROMPT_VERSION,
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !feedbackRow) {
+      throw new Error(insertError?.message || 'Failed to save speech feedback.');
+    }
+
+    await updateAnalysisAttempt(supabase, attemptId, {
+      status: 'succeeded',
+      model_name: config.evalModel,
+      feedback_id: feedbackRow.id,
+    });
+
+    return NextResponse.json({
+      analysis,
+      feedbackId: feedbackRow.id,
+      transcript: normalizedTranscript.transcript,
+      isTrimmed: normalizedTranscript.isTrimmed,
+      remainingToday: reservation.remainingToday,
+    });
   } catch (error) {
     console.error('Analysis error:', error);
+
+    try {
+      const supabase = await createSupabaseServerClient();
+      await updateAnalysisAttempt(supabase, attemptId, {
+        status: modelInvoked ? 'failed_after_model' : 'failed_before_model',
+        error_code: error instanceof Error ? error.message.slice(0, 160) : 'ANALYSIS_FAILED',
+      });
+    } catch (attemptUpdateError) {
+      console.error('Failed to update analysis attempt:', attemptUpdateError);
+    }
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Analysis failed',

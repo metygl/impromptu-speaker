@@ -4,6 +4,7 @@ import { ArrowLeft, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/AuthProvider';
 
 interface HeaderProps {
   title?: string;
@@ -21,6 +22,7 @@ export function Header({
   className,
 }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, isConfigured, signOut } = useAuth();
 
   const handleBack = () => {
     if (onBack) {
@@ -100,13 +102,15 @@ export function Header({
               >
                 New Practice
               </Link>
-              <Link
-                href="/recordings"
-                onClick={() => setIsMenuOpen(false)}
-                className="block rounded-lg px-4 py-3 text-text-primary transition-colors hover:bg-bg-secondary"
-              >
-                Recordings
-              </Link>
+              {user ? (
+                <Link
+                  href="/feedback"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block rounded-lg px-4 py-3 text-text-primary transition-colors hover:bg-bg-secondary"
+                >
+                  Feedback
+                </Link>
+              ) : null}
               <Link
                 href="/decks"
                 onClick={() => setIsMenuOpen(false)}
@@ -114,7 +118,33 @@ export function Header({
               >
                 Manage Decks
               </Link>
+              {isConfigured && !user ? (
+                <Link
+                  href="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block rounded-lg px-4 py-3 text-text-primary transition-colors hover:bg-bg-secondary"
+                >
+                  Sign In
+                </Link>
+              ) : null}
+              {user ? (
+                <button
+                  onClick={async () => {
+                    await signOut();
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full rounded-lg px-4 py-3 text-left text-text-primary transition-colors hover:bg-bg-secondary"
+                >
+                  Sign Out
+                </button>
+              ) : null}
             </nav>
+
+            {user?.email ? (
+              <div className="mt-6 rounded-xl bg-bg-secondary px-4 py-3 text-sm text-text-secondary">
+                Signed in as <span className="font-medium text-text-primary">{user.email}</span>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

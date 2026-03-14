@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Mic, Settings, Layers, Sparkles } from 'lucide-react';
+import { Mic, Settings, Layers, Sparkles, Lock } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function Home() {
+  const { user, isConfigured } = useAuth();
+
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Hero Section */}
@@ -55,12 +58,24 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          <div className="flex items-center gap-4 rounded-xl bg-bg-secondary p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-sm">
+              <Lock className="h-5 w-5 text-text-secondary" />
+            </div>
+            <div>
+              <div className="font-medium text-text-primary">AI Feedback</div>
+              <div className="text-sm text-text-secondary">
+                Sign in to record locally and save transcript feedback
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Bottom navigation */}
       <div className="safe-bottom border-t border-border bg-white px-6 py-4">
-        <div className="flex justify-center gap-4">
+        <div className="flex flex-wrap justify-center gap-4">
           <Link
             href="/decks"
             className="btn btn-ghost text-sm"
@@ -68,6 +83,18 @@ export default function Home() {
             <Layers className="h-4 w-4" />
             Manage Decks
           </Link>
+          {isConfigured && !user ? (
+            <Link href="/login" className="btn btn-ghost text-sm">
+              <Sparkles className="h-4 w-4" />
+              Sign In for AI
+            </Link>
+          ) : null}
+          {user ? (
+            <Link href="/feedback" className="btn btn-ghost text-sm">
+              <Sparkles className="h-4 w-4" />
+              Feedback
+            </Link>
+          ) : null}
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, JetBrains_Mono, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from '@/components/AuthProvider';
 
 const instrumentSerif = Instrument_Serif({
   weight: "400",
@@ -52,9 +53,11 @@ export default function RootLayout({
       <body
         className={`${instrumentSerif.variable} ${jetbrainsMono.variable} ${dmSans.variable} antialiased`}
       >
-        <main className="min-h-dvh flex flex-col">
-          {children}
-        </main>
+        <AuthProvider>
+          <main className="min-h-dvh flex flex-col">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );
