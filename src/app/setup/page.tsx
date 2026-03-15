@@ -1,22 +1,31 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Play } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { PageIntro } from '@/components/PageIntro';
 import { DeckSelector } from '@/components/DeckSelector';
 import { FrameworkSelector } from '@/components/FrameworkSelector';
 import { TimerSelector } from '@/components/TimerSelector';
+import {
+  defaultBuiltInDeck,
+  getAllDecks,
+} from '@/lib/data/decks';
 import { frameworks } from '@/lib/data/frameworks';
-import { defaultDeck } from '@/lib/data/defaultTopics';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { Deck, PracticeSettings } from '@/lib/types';
+import { getCompatibleFrameworks, normalizeSelectedFrameworkIds } from '@/lib/utils';
 
 const DEFAULT_SETTINGS: PracticeSettings = {
-  selectedDeckId: 'default',
-  selectedFrameworkIds: frameworks.map((f) => f.id),
+  selectedDeckId: defaultBuiltInDeck.id,
+  selectedFrameworkIds: defaultBuiltInDeck.allowedFrameworkIds ?? frameworks.map((f) => f.id),
   speechDurationSeconds: 180, // 3 minutes
   prepDurationSeconds: 60,
 };
+
+function arraysEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
 
 export default function SetupPage() {
   const router = useRouter();
@@ -27,10 +36,48 @@ export default function SetupPage() {
   );
   const isHydrated = areDecksHydrated && areSettingsHydrated;
 
-  const allDecks = [defaultDeck, ...customDecks];
+  const allDecks = getAllDecks(customDecks);
+  const currentDeck =
+    allDecks.find((deck) => deck.id === settings.selectedDeckId) ?? defaultBuiltInDeck;
+  const availableFrameworks = getCompatibleFrameworks(currentDeck, frameworks);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const selectedDeckExists = allDecks.some((deck) => deck.id === settings.selectedDeckId);
+    const nextDeck = selectedDeckExists ? currentDeck : defaultBuiltInDeck;
+    const nextFrameworkIds = normalizeSelectedFrameworkIds(
+      getCompatibleFrameworks(nextDeck, frameworks),
+      settings.selectedFrameworkIds
+    );
+
+    if (
+      nextDeck.id !== settings.selectedDeckId ||
+      !arraysEqual(nextFrameworkIds, settings.selectedFrameworkIds)
+    ) {
+      setSettings((prev) => ({
+        ...prev,
+        selectedDeckId: nextDeck.id,
+        selectedFrameworkIds: nextFrameworkIds,
+      }));
+    }
+  }, [
+    allDecks,
+    currentDeck,
+    isHydrated,
+    setSettings,
+    settings.selectedDeckId,
+    settings.selectedFrameworkIds,
+  ]);
 
   const handleFrameworkToggle = (frameworkId: string) => {
     setSettings((prev) => {
+      if (!availableFrameworks.some((framework) => framework.id === frameworkId)) {
+        return prev;
+      }
+
       const isSelected = prev.selectedFrameworkIds.includes(frameworkId);
       return {
         ...prev,
@@ -45,9 +92,24 @@ export default function SetupPage() {
     setSettings((prev) => ({
       ...prev,
       selectedFrameworkIds:
-        prev.selectedFrameworkIds.length === frameworks.length
+        prev.selectedFrameworkIds.length === availableFrameworks.length
           ? []
-          : frameworks.map((f) => f.id),
+          : availableFrameworks.map((framework) => framework.id),
+    }));
+  };
+
+  const handleDeckSelect = (deckId: string) => {
+    const nextDeck = allDecks.find((deck) => deck.id === deckId) ?? defaultBuiltInDeck;
+    const nextFrameworks = getCompatibleFrameworks(nextDeck, frameworks);
+    const nextSelectedIds = normalizeSelectedFrameworkIds(
+      nextFrameworks,
+      settings.selectedFrameworkIds
+    );
+
+    setSettings((prev) => ({
+      ...prev,
+      selectedDeckId: nextDeck.id,
+      selectedFrameworkIds: nextSelectedIds,
     }));
   };
 
@@ -75,21 +137,19 @@ export default function SetupPage() {
           <PageIntro
             eyebrow="Practice flow"
             title="Set up your next round"
-            description="Choose a deck, narrow the frameworks if you want, and set your speaking time before generating a topic."
+            description="Choose a goal-focused deck, keep the compatible frameworks you want, and set your speaking time before generating a topic."
           />
 
           {/* Deck Selection */}
           <DeckSelector
             decks={allDecks}
             selectedDeckId={settings.selectedDeckId}
-            onSelect={(deckId) =>
-              setSettings((prev) => ({ ...prev, selectedDeckId: deckId }))
-            }
+            onSelect={handleDeckSelect}
           />
 
           {/* Framework Selection */}
           <FrameworkSelector
-            frameworks={frameworks}
+            frameworks={availableFrameworks}
             selectedIds={settings.selectedFrameworkIds}
             onToggle={handleFrameworkToggle}
             onSelectAll={handleSelectAllFrameworks}
@@ -117,7 +177,7 @@ export default function SetupPage() {
             className="btn btn-primary w-full gap-2 disabled:opacity-50"
           >
             <Play className="h-5 w-5" />
-            Generate Topic
+            Generate Prompt
           </button>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
 import { PageIntro } from '@/components/PageIntro';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
-import { defaultDeck, generateDeckId } from '@/lib/data/defaultTopics';
+import { generateDeckId, getAllDecks } from '@/lib/data/decks';
 import { Deck } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +44,7 @@ export default function DecksPage() {
     );
   }
 
-  const allDecks = [defaultDeck, ...customDecks];
+  const allDecks = getAllDecks(customDecks);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -55,7 +55,7 @@ export default function DecksPage() {
           <PageIntro
             eyebrow="Library"
             title="Topic decks"
-            description="Organize prompts into reusable decks, then use them in the practice flow whenever you want a different mix."
+            description="Use the built-in goal-focused decks or create your own prompt collections for custom practice."
           />
 
           {/* Deck list */}
@@ -72,31 +72,38 @@ export default function DecksPage() {
                   <div
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-lg',
-                      deck.isDefault ? 'bg-accent/10' : 'bg-bg-secondary'
+                      deck.isBuiltIn ? 'bg-accent/10' : 'bg-bg-secondary'
                     )}
                   >
                     <Layers
                       className={cn(
                         'h-5 w-5',
-                        deck.isDefault ? 'text-accent' : 'text-text-secondary'
+                        deck.isBuiltIn ? 'text-accent' : 'text-text-secondary'
                       )}
                     />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 font-medium text-text-primary">
                       {deck.name}
-                      {deck.isDefault && (
+                      {deck.isBuiltIn && (
                         <Lock className="h-3 w-3 text-text-secondary" />
                       )}
                     </div>
                     <div className="text-sm text-text-secondary">
-                      {deck.topics.length} topics
+                      {deck.objectiveLabel
+                        ? `${deck.objectiveLabel} · ${deck.topics.length} prompts`
+                        : `${deck.topics.length} topics`}
                     </div>
+                    {deck.description && (
+                      <div className="mt-1 max-w-[20rem] text-xs leading-relaxed text-text-secondary/80">
+                        {deck.description}
+                      </div>
+                    )}
                   </div>
                 </Link>
 
                 <div className="flex items-center gap-2">
-                  {!deck.isDefault && (
+                  {!deck.isBuiltIn && (
                     <button
                       onClick={() => setDeckToDelete(deck.id)}
                       className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-red-50 hover:text-red-500"

@@ -19,19 +19,24 @@ import { FrameworkCard } from '@/components/FrameworkCard';
 import { RecordingIndicator } from '@/components/RecordingIndicator';
 import { SaveRecordingModal } from '@/components/SaveRecordingModal';
 import { useAuth } from '@/components/AuthProvider';
+import { defaultBuiltInDeck, getAllDecks } from '@/lib/data/decks';
 import { frameworks } from '@/lib/data/frameworks';
-import { defaultDeck } from '@/lib/data/defaultTopics';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
 import { useTimer } from '@/lib/hooks/useTimer';
 import { useAudio } from '@/lib/hooks/useAudio';
 import { useRecording } from '@/lib/hooks/useRecording';
 import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
-import { getRandomTopic, getRandomFrameworkFromList } from '@/lib/utils';
+import {
+  getCompatibleFrameworksForTopic,
+  getRandomTopic,
+  getRandomFrameworkFromList,
+  normalizeSelectedFrameworkIds,
+} from '@/lib/utils';
 import { Deck, PracticeSettings, Topic, Framework, PracticePhase } from '@/lib/types';
 
 const DEFAULT_SETTINGS: PracticeSettings = {
-  selectedDeckId: 'default',
-  selectedFrameworkIds: frameworks.map((f) => f.id),
+  selectedDeckId: defaultBuiltInDeck.id,
+  selectedFrameworkIds: defaultBuiltInDeck.allowedFrameworkIds ?? frameworks.map((f) => f.id),
   speechDurationSeconds: 180,
   prepDurationSeconds: 60,
 };
@@ -75,8 +80,9 @@ export default function PracticePage() {
     },
   });
 
-  const allDecks = [defaultDeck, ...customDecks];
-  const currentDeck = allDecks.find((d) => d.id === settings.selectedDeckId) || defaultDeck;
+  const allDecks = getAllDecks(customDecks);
+  const currentDeck =
+    allDecks.find((deck) => deck.id === settings.selectedDeckId) ?? defaultBuiltInDeck;
 
   const resetRecordingState = useCallback(() => {
     setRecordingBlob(null);
@@ -87,12 +93,18 @@ export default function PracticePage() {
 
   const generateNew = useCallback(() => {
     const newTopic = getRandomTopic(currentDeck);
-    const selectedFrameworks = frameworks.filter((f) =>
-      settings.selectedFrameworkIds.includes(f.id)
+    const compatibleFrameworks = getCompatibleFrameworksForTopic(
+      currentDeck,
+      newTopic,
+      frameworks
+    );
+    const selectedFrameworkIds = normalizeSelectedFrameworkIds(
+      compatibleFrameworks,
+      settings.selectedFrameworkIds
     );
     const newFramework = getRandomFrameworkFromList(
-      selectedFrameworks.length > 0 ? selectedFrameworks : frameworks,
-      settings.selectedFrameworkIds
+      compatibleFrameworks,
+      selectedFrameworkIds
     );
 
     setTopic(newTopic);

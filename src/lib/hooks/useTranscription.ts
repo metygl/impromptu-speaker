@@ -29,6 +29,8 @@ interface TranscriptionResult {
   text: string;
 }
 
+type TranscriptionResponse = TranscriptionResult | TranscriptionResult[];
+
 interface TranscriberOptions {
   chunk_length_s: number;
   stride_length_s: number;
@@ -41,7 +43,7 @@ interface TranscriberOptions {
 type Transcriber = (
   audioData: Float32Array,
   options: TranscriberOptions
-) => Promise<TranscriptionResult>;
+) => Promise<TranscriptionResponse>;
 
 // Singleton for the transcriber pipeline to avoid reloading the model
 let transcriberPromise: Promise<Transcriber> | null = null;
@@ -185,13 +187,20 @@ export function useTranscription(): UseTranscriptionReturn {
 
         console.log('[Transcription] Result:', result);
 
-        if (!result || typeof result.text !== 'string') {
+        const transcriptText = Array.isArray(result)
+          ? result
+              .map((entry) => entry?.text?.trim())
+              .filter((entry): entry is string => Boolean(entry))
+              .join(' ')
+          : result?.text?.trim();
+
+        if (!transcriptText) {
           throw new Error('Transcription returned invalid result');
         }
 
         setProgress({ status: 'complete', transcriptionProgress: 100, message: 'Transcription complete!' });
 
-        return result.text.trim();
+        return transcriptText;
       } catch (err) {
         console.error('[Transcription] Error:', err);
         const errorMessage = err instanceof Error ? err.message : 'Transcription failed';

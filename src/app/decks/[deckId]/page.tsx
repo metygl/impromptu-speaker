@@ -8,7 +8,7 @@ import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
 import { PageIntro } from '@/components/PageIntro';
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
-import { defaultDeck, generateTopicId } from '@/lib/data/defaultTopics';
+import { generateTopicId, getBuiltInDeckById } from '@/lib/data/decks';
 import { Deck, Topic } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -22,11 +22,9 @@ export default function EditDeckPage() {
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
 
-  // Find the deck
-  const isDefaultDeck = deckId === 'default';
-  const deck = isDefaultDeck
-    ? defaultDeck
-    : customDecks.find((d) => d.id === deckId);
+  const builtInDeck = getBuiltInDeckById(deckId);
+  const isBuiltInDeck = Boolean(builtInDeck);
+  const deck = builtInDeck ?? customDecks.find((d) => d.id === deckId);
 
   // Redirect if deck not found
   useEffect(() => {
@@ -36,7 +34,7 @@ export default function EditDeckPage() {
   }, [isHydrated, deck, router]);
 
   const handleAddTopic = () => {
-    if (!newTopicText.trim() || isDefaultDeck) return;
+    if (!newTopicText.trim() || isBuiltInDeck) return;
 
     const newTopic: Topic = {
       id: generateTopicId(),
@@ -52,7 +50,7 @@ export default function EditDeckPage() {
   };
 
   const handleDeleteTopic = (topicId: string) => {
-    if (isDefaultDeck) return;
+    if (isBuiltInDeck) return;
 
     setCustomDecks((prev) =>
       prev.map((d) =>
@@ -64,13 +62,13 @@ export default function EditDeckPage() {
   };
 
   const handleStartEditing = (topic: Topic) => {
-    if (isDefaultDeck) return;
+    if (isBuiltInDeck) return;
     setEditingTopicId(topic.id);
     setEditingText(topic.text);
   };
 
   const handleSaveEdit = () => {
-    if (!editingText.trim() || !editingTopicId || isDefaultDeck) return;
+    if (!editingText.trim() || !editingTopicId || isBuiltInDeck) return;
 
     setCustomDecks((prev) =>
       prev.map((d) =>
@@ -103,16 +101,16 @@ export default function EditDeckPage() {
       <div className="flex-1 px-4 pb-24">
         <div className="mx-auto max-w-md py-6">
           <PageIntro
-            eyebrow={isDefaultDeck ? 'Built in' : 'Custom deck'}
+            eyebrow={isBuiltInDeck ? 'Built in' : 'Custom deck'}
             title={deck.name}
-            description={`${deck.topics.length} topic${deck.topics.length === 1 ? '' : 's'} available${isDefaultDeck ? '. This deck is read-only.' : '. Add, edit, or remove prompts below.'}`}
+            description={`${deck.topics.length} prompt${deck.topics.length === 1 ? '' : 's'} available${isBuiltInDeck ? '. This deck is read-only.' : '. Add, edit, or remove prompts below.'}${deck.description ? ` ${deck.description}` : ''}`}
           />
 
-          {/* Read-only notice for default deck */}
-          {isDefaultDeck && (
+          {/* Read-only notice for built-in decks */}
+          {isBuiltInDeck && (
             <div className="mb-4 mt-6 flex items-center gap-2 rounded-lg bg-bg-secondary p-3 text-sm text-text-secondary">
               <Lock className="h-4 w-4" />
-              This is the default deck and cannot be edited.
+              This is a built-in deck and cannot be edited.
             </div>
           )}
 
@@ -123,7 +121,7 @@ export default function EditDeckPage() {
                 key={topic.id}
                 className={cn(
                   'card flex items-start gap-3 p-4',
-                  !isDefaultDeck && 'cursor-pointer hover:bg-bg-secondary/50'
+                  !isBuiltInDeck && 'cursor-pointer hover:bg-bg-secondary/50'
                 )}
                 onClick={() => handleStartEditing(topic)}
               >
@@ -167,7 +165,7 @@ export default function EditDeckPage() {
                     <p className="flex-1 text-sm text-text-primary">
                       {topic.text}
                     </p>
-                    {!isDefaultDeck && (
+                    {!isBuiltInDeck && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -195,7 +193,7 @@ export default function EditDeckPage() {
           )}
 
           {/* Add topic input */}
-          {!isDefaultDeck && (
+          {!isBuiltInDeck && (
             <div className="mt-4">
               <div className="flex gap-2">
                 <input

@@ -1,8 +1,28 @@
 # TODO
 
-Last updated: 2026-03-14
+Last updated: 2026-03-15
 
 This file tracks the next practical steps after the shared-demo/auth rollout.
+
+## Content Strategy
+
+- [x] Define the built-in objective taxonomy for practice mode
+- [x] Replace the single generic default deck with curated deck families for interviews, introductions, networking, updates, self-advocacy, persuasion, and difficult conversations
+- [x] Add framework compatibility metadata at the deck level
+- [x] Add optional framework compatibility overrides at the topic level for prompts that only support one answer structure
+- [x] Decide which existing frameworks survive the curated pass and which become hidden from incompatible objectives
+- [x] Draft and seed the first interview deck family
+- [x] Draft and seed the first elevator-pitch / self-introduction deck family
+- [x] Draft and seed the first networking deck family
+- [x] Draft and seed the first status-update / stakeholder-update deck family
+- [x] Draft and seed the first performance-review / self-advocacy deck family
+- [x] Draft and seed the first persuasion / proposal deck family
+- [x] Draft and seed the first difficult-conversation deck family
+- [x] Add at least one new framework each for introductions, status updates, self-advocacy, and difficult conversations
+- [x] Update the setup flow to choose objective -> deck -> compatible framework instead of deck -> any framework
+- [ ] Show objective metadata in practice, recording, and feedback surfaces where useful
+- [ ] Add content QA passes to remove prompt/framework pairings that feel forced or unrealistic
+- [ ] Decide whether to expose objective selection as a first-class setup step instead of inferring it from the chosen deck
 
 ## Immediate Testing
 
@@ -84,6 +104,8 @@ Current recommendation:
 - [x] Align the main app routes around persistent menu navigation plus forward CTAs
 - [ ] Consider whether feedback detail should link back to a matching local recording detail page when both exist
 - [ ] Consider adding a shared card/section component for more of the remaining detail surfaces
+- [x] Add tests for objective-aware framework filtering in setup and practice generation
+- [x] Add tests for topic-level framework overrides
 
 ## Existing Repo Cleanup Not Caused By This Rollout
 

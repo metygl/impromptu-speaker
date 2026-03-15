@@ -27,7 +27,7 @@ export function FrameworkSelector({
       className={className}
       eyebrow="Step 2"
       title="Frameworks"
-      description="Pick the speaking structures you want available when a prompt is generated."
+      description="Pick from the answer structures that fit this deck."
       action={
         <button
           onClick={onSelectAll}

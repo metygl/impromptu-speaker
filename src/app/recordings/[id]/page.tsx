@@ -157,9 +157,9 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
 
       const nextUpdates = {
         transcript: normalizedTranscript,
-        analysis: data.analysis,
+        analysis: data?.analysis,
         analyzedAt: new Date().toISOString(),
-        feedbackId: data.feedbackId,
+        feedbackId: data?.feedbackId,
       };
 
       await updateRecording(id, nextUpdates);

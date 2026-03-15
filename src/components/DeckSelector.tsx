@@ -54,7 +54,9 @@ export function DeckSelector({
             <div>
               <div className="font-medium text-text-primary">{selectedDeck.name}</div>
               <div className="text-sm text-text-secondary">
-                {selectedDeck.topics.length} topics
+                {selectedDeck.objectiveLabel
+                  ? `${selectedDeck.objectiveLabel} · ${selectedDeck.topics.length} prompts`
+                  : `${selectedDeck.topics.length} topics`}
               </div>
             </div>
           </div>
@@ -97,8 +99,15 @@ export function DeckSelector({
                   {deck.name}
                 </div>
                 <div className="text-xs text-text-secondary">
-                  {deck.topics.length} topics
+                  {deck.objectiveLabel
+                    ? `${deck.objectiveLabel} · ${deck.topics.length} prompts`
+                    : `${deck.topics.length} topics`}
                 </div>
+                {deck.description && (
+                  <div className="mt-1 max-w-[18rem] text-xs leading-relaxed text-text-secondary/80">
+                    {deck.description}
+                  </div>
+                )}
               </div>
             </button>
           ))}

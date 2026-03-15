@@ -13,11 +13,13 @@ export interface Framework {
   steps: FrameworkStep[];
   bestFor: string;
   tips: string[];
+  objectiveIds?: string[];
 }
 
 export interface Topic {
   id: string;
   text: string;
+  allowedFrameworkIds?: string[];
 }
 
 export interface Deck {
@@ -25,7 +27,10 @@ export interface Deck {
   name: string;
   description?: string;
   topics: Topic[];
-  isDefault?: boolean;
+  objectiveId?: string;
+  objectiveLabel?: string;
+  allowedFrameworkIds?: string[];
+  isBuiltIn?: boolean;
 }
 
 export interface PracticeSettings {
@@ -69,6 +74,7 @@ export interface Recording extends RecordingMetadata {
   transcript?: string;
   analysis?: SpeechAnalysis;
   analyzedAt?: string; // ISO timestamp
+  feedbackId?: string;
 }
 
 // AI Analysis Types
