@@ -17,15 +17,10 @@ export default function EditDeckPage() {
   const router = useRouter();
   const deckId = params.deckId as string;
 
-  const [customDecks, setCustomDecks] = useLocalStorage<Deck[]>('customDecks', []);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [customDecks, setCustomDecks, isHydrated] = useLocalStorage<Deck[]>('customDecks', []);
   const [newTopicText, setNewTopicText] = useState('');
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
 
   // Find the deck
   const isDefaultDeck = deckId === 'default';

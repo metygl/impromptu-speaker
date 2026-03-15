@@ -32,13 +32,13 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
   const animationFrameRef = useRef<number | null>(null);
 
   // Update time display during playback
-  const updateTime = useCallback(() => {
+  const updateTime = useCallback(function updatePlaybackTime() {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
       if (audioRef.current.paused) {
         setIsPlaying(false);
       } else {
-        animationFrameRef.current = requestAnimationFrame(updateTime);
+        animationFrameRef.current = requestAnimationFrame(updatePlaybackTime);
       }
     }
   }, []);

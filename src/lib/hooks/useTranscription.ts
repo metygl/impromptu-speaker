@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 
 // Whisper model configuration
 const MODEL_ID = 'Xenova/whisper-small';
@@ -19,15 +19,37 @@ interface UseTranscriptionReturn {
   error: string | null;
 }
 
+interface ModelLoadProgress {
+  status?: string;
+  loaded?: number;
+  total?: number;
+}
+
+interface TranscriptionResult {
+  text: string;
+}
+
+interface TranscriberOptions {
+  chunk_length_s: number;
+  stride_length_s: number;
+  language: string;
+  task: string;
+  return_timestamps: boolean;
+  callback_function: () => void;
+}
+
+type Transcriber = (
+  audioData: Float32Array,
+  options: TranscriberOptions
+) => Promise<TranscriptionResult>;
+
 // Singleton for the transcriber pipeline to avoid reloading the model
-let transcriberPromise: Promise<any> | null = null;
+let transcriberPromise: Promise<Transcriber> | null = null;
 
 export function useTranscription(): UseTranscriptionReturn {
   const [progress, setProgress] = useState<TranscriptionProgress>({ status: 'idle' });
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadModel = useCallback(async () => {
     if (transcriberPromise) {
@@ -46,7 +68,7 @@ export function useTranscription(): UseTranscriptionReturn {
       env.useBrowserCache = true;
 
       transcriberPromise = pipeline('automatic-speech-recognition', MODEL_ID, {
-        progress_callback: (progressData: any) => {
+        progress_callback: (progressData: ModelLoadProgress) => {
           // Defensive check for progress data
           if (progressData && typeof progressData === 'object' && progressData.status === 'progress') {
             const loaded = progressData.loaded ?? 0;
@@ -152,7 +174,7 @@ export function useTranscription(): UseTranscriptionReturn {
           language: 'english',
           task: 'transcribe',
           return_timestamps: false,
-          callback_function: (beams: any) => {
+          callback_function: () => {
             // Update progress message to show activity
             setProgress({
               status: 'transcribing',

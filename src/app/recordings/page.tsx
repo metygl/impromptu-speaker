@@ -1,100 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mic, HardDrive, Sparkles } from 'lucide-react';
+import { Archive, Mic, Sparkles } from 'lucide-react';
 import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
 import { PageIntro } from '@/components/PageIntro';
-import { RecordingCard } from '@/components/RecordingCard';
-import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
-import { useAudioPlayback } from '@/lib/hooks/useAudioPlayback';
-
-function formatStorageSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function RecordingsPage() {
-  const router = useRouter();
-  const {
-    recordings,
-    isLoading,
-    totalStorageUsed,
-    deleteRecording,
-    getAudioUrl,
-    revokeAudioUrl,
-  } = useVoiceRecordings();
-
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
-
-  const audioPlayback = useAudioPlayback();
-
-  // Handle audio URL cleanup
-  useEffect(() => {
-    return () => {
-      if (currentAudioUrl) {
-        revokeAudioUrl(currentAudioUrl);
-      }
-    };
-  }, [currentAudioUrl, revokeAudioUrl]);
-
-  // Handle playback end
-  useEffect(() => {
-    if (!audioPlayback.isPlaying && playingId && audioPlayback.progress >= 0.99) {
-      setPlayingId(null);
-    }
-  }, [audioPlayback.isPlaying, audioPlayback.progress, playingId]);
-
-  const handlePlay = async (id: string) => {
-    // Stop current playback if different recording
-    if (playingId && playingId !== id) {
-      audioPlayback.unload();
-      if (currentAudioUrl) {
-        revokeAudioUrl(currentAudioUrl);
-      }
-    }
-
-    const url = await getAudioUrl(id);
-    if (url) {
-      setCurrentAudioUrl(url);
-      audioPlayback.loadUrl(url);
-      setPlayingId(id);
-      // Small delay to ensure audio is loaded
-      setTimeout(() => audioPlayback.play(), 100);
-    }
-  };
-
-  const handlePause = () => {
-    audioPlayback.pause();
-  };
-
-  const handleDelete = async (id: string) => {
-    if (playingId === id) {
-      audioPlayback.unload();
-      setPlayingId(null);
-    }
-    await deleteRecording(id);
-  };
-
-  const handleCardClick = (id: string) => {
-    router.push(`/recordings/${id}`);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-dvh flex-col">
-        <Header title="Recordings" />
-        <div className="flex flex-1 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-dvh flex-col">
       <Header title="Recordings" />
@@ -102,74 +14,37 @@ export default function RecordingsPage() {
       <div className="flex-1 px-4 pb-8">
         <div className="mx-auto w-full max-w-2xl">
           <PageIntro
-            eyebrow="Local review"
-            title="Recordings"
-            description="Saved recordings stay on this device. Reopen one for playback, transcription, and AI feedback."
+            eyebrow="Archived"
+            title="Local recordings list is archived"
+            description="For now, the dedicated recordings index is no longer part of the main flow. New saves still open directly on their recording detail page, and analyzed sessions are easiest to revisit from feedback history."
           />
 
-          {/* Storage info */}
-          <div className="mt-5 flex items-center justify-between rounded-lg bg-bg-secondary px-4 py-3">
-            <div className="flex items-center gap-2 text-sm text-text-secondary">
-              <HardDrive className="h-4 w-4" />
-              <span>Storage used</span>
+          <div className="mt-8 rounded-3xl border border-border bg-white p-6 shadow-[0_16px_60px_rgba(26,26,24,0.08)]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-subtle text-accent">
+                <Archive className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl text-text-primary">What changed</h2>
+                <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+                  Local audio still stays on this device. The active review loop now centers on
+                  direct recording detail pages and saved feedback pages instead of a separate
+                  recordings list.
+                </p>
+              </div>
             </div>
-            <span className="text-sm font-medium">
-              {formatStorageSize(totalStorageUsed)}
-            </span>
           </div>
 
-          {/* Recordings list */}
-          {recordings.length > 0 ? (
-            <>
-              <div className="mt-6 space-y-3">
-                {recordings.map((recording) => (
-                  <RecordingCard
-                    key={recording.id}
-                    recording={recording}
-                    isPlaying={playingId === recording.id && audioPlayback.isPlaying}
-                    onPlay={() => handlePlay(recording.id)}
-                    onPause={handlePause}
-                    onDelete={() => handleDelete(recording.id)}
-                    onClick={() => handleCardClick(recording.id)}
-                  />
-                ))}
-              </div>
-
-              <FlowActions description="Start another round or switch to your saved AI feedback without hunting through the menu.">
-                <button
-                  onClick={() => router.push('/setup')}
-                  className="btn btn-primary w-full justify-center"
-                >
-                  <Mic className="h-4 w-4" />
-                  Start a New Session
-                </button>
-                <Link href="/feedback" className="btn btn-secondary w-full justify-center">
-                  <Sparkles className="h-4 w-4" />
-                  View Feedback History
-                </Link>
-              </FlowActions>
-            </>
-          ) : (
-            /* Empty state */
-            <div className="mt-16 flex flex-col items-center text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-bg-secondary">
-                <Mic className="h-8 w-8 text-text-secondary" />
-              </div>
-              <h2 className="mt-4 font-display text-xl font-medium text-text-primary">
-                No recordings yet
-              </h2>
-              <p className="mt-2 max-w-xs text-sm text-text-secondary">
-                Complete a practice session to save your first recording. Your
-                recordings will appear here.
-              </p>
-              <button
-                onClick={() => router.push('/setup')}
-                className="btn btn-primary mt-6"
-              >
-                Start a New Session
-              </button>
-            </div>
-          )}
+          <FlowActions description="Use one path to revisit analyzed sessions, or start another round right away.">
+            <Link href="/feedback" className="btn btn-primary w-full justify-center">
+              <Sparkles className="h-4 w-4" />
+              Open Feedback History
+            </Link>
+            <Link href="/setup" className="btn btn-secondary w-full justify-center">
+              <Mic className="h-4 w-4" />
+              Start a New Session
+            </Link>
+          </FlowActions>
         </div>
       </div>
     </div>

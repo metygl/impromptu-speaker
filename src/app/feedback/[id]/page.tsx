@@ -34,6 +34,17 @@ function formatDate(isoString: string) {
   });
 }
 
+function buildFeedbackTopicId(topicText: string) {
+  const slug = topicText
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
+  return slug ? `saved-topic:${slug}` : 'saved-topic:untitled';
+}
+
 export default function FeedbackDetailPage({ params }: FeedbackDetailPageProps) {
   const router = useRouter();
   const { id } = use(params);
@@ -177,7 +188,7 @@ export default function FeedbackDetailPage({ params }: FeedbackDetailPageProps) 
     }
 
     const searchParams = new URLSearchParams({
-      topicId: feedback.id,
+      topicId: buildFeedbackTopicId(feedback.topicText),
       topicText: feedback.topicText,
       frameworkId: feedback.frameworkId,
     });

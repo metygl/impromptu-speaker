@@ -1,6 +1,22 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+interface MockIndexedDBRequest {
+  result: {
+    createObjectStore: ReturnType<typeof vi.fn>;
+    objectStoreNames: { contains: ReturnType<typeof vi.fn> };
+    transaction: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
+  };
+  onerror: null;
+  onsuccess: null;
+  onupgradeneeded: null;
+}
+
+interface MockMediaRecorderDataEvent {
+  data: Blob;
+}
+
 // Mock Next.js router
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -17,7 +33,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock IndexedDB
 const indexedDB = {
-  open: vi.fn(() => ({
+  open: vi.fn<() => MockIndexedDBRequest>(() => ({
     result: {
       createObjectStore: vi.fn(),
       objectStoreNames: { contains: vi.fn(() => false) },
@@ -46,9 +62,9 @@ Object.defineProperty(window, 'indexedDB', {
 // Mock MediaRecorder
 class MockMediaRecorder {
   state = 'inactive';
-  ondataavailable: ((event: any) => void) | null = null;
+  ondataavailable: ((event: MockMediaRecorderDataEvent) => void) | null = null;
   onstop: (() => void) | null = null;
-  onerror: ((event: any) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
 
   constructor(public stream: MediaStream) {}
 
@@ -133,7 +149,7 @@ class MockAudio {
   onloadedmetadata: (() => void) | null = null;
   oncanplaythrough: (() => void) | null = null;
   onended: (() => void) | null = null;
-  onerror: ((e: any) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
 
   play() {
     this.paused = false;

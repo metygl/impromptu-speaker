@@ -97,7 +97,7 @@ export function useRecording(options: UseRecordingOptions = {}): UseRecordingRet
       stream.getTracks().forEach((track) => track.stop());
       setHasPermission(true);
       return true;
-    } catch (err) {
+    } catch {
       setHasPermission(false);
       return false;
     }
@@ -123,7 +123,7 @@ export function useRecording(options: UseRecordingOptions = {}): UseRecordingRet
         }
       };
 
-      mediaRecorder.onerror = (event) => {
+      mediaRecorder.onerror = () => {
         const errorMessage = 'Recording failed';
         setError(errorMessage);
         onError?.(new Error(errorMessage));

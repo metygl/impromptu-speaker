@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ArrowRight, History, Mic, Sparkles } from 'lucide-react';
+import { ArrowRight, Layers, Mic, Sparkles } from 'lucide-react';
 import { FlowActions } from '@/components/FlowActions';
 import { Header } from '@/components/Header';
 import { PageIntro } from '@/components/PageIntro';
@@ -19,10 +18,8 @@ function formatDate(isoString: string) {
 }
 
 export default function FeedbackPage() {
-  const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [feedback, setFeedback] = useState<SpeechFeedbackRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<SpeechFeedbackRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,31 +29,35 @@ export default function FeedbackPage() {
     }
 
     let isMounted = true;
-    setIsLoading(true);
+    const loadFeedback = async () => {
+      setError(null);
 
-    fetch('/api/feedback')
-      .then(async (response) => {
+      try {
+        const response = await fetch('/api/feedback');
         const data = await response.json();
+
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load feedback history');
         }
+
         if (isMounted) {
           setFeedback(data.feedback ?? []);
-          setIsLoading(false);
         }
-      })
-      .catch((nextError) => {
+      } catch (nextError) {
         if (!isMounted) return;
         setError(nextError instanceof Error ? nextError.message : 'Failed to load feedback history');
-        setIsLoading(false);
-      });
+        setFeedback([]);
+      }
+    };
+
+    void loadFeedback();
 
     return () => {
       isMounted = false;
     };
   }, [isAuthLoading, user]);
 
-  if (isAuthLoading || (user && isLoading)) {
+  if (isAuthLoading || (user && !feedback && !error)) {
     return (
       <div className="flex min-h-dvh flex-col">
         <Header title="Feedback" />
@@ -108,7 +109,7 @@ export default function FeedbackPage() {
             </div>
           ) : null}
 
-          {feedback.length === 0 ? (
+          {(feedback ?? []).length === 0 ? (
             <div className="mt-10 rounded-3xl border border-dashed border-border-strong bg-bg-secondary p-8 text-center">
               <h2 className="font-display text-2xl text-text-primary">No feedback yet</h2>
               <p className="mt-3 text-sm text-text-secondary">
@@ -117,7 +118,7 @@ export default function FeedbackPage() {
             </div>
           ) : (
             <div className="mt-8 space-y-4">
-              {feedback.map((entry) => (
+              {(feedback ?? []).map((entry) => (
                 <Link
                   key={entry.id}
                   href={`/feedback/${entry.id}`}
@@ -157,9 +158,9 @@ export default function FeedbackPage() {
               <Mic className="h-4 w-4" />
               Start a New Session
             </Link>
-            <Link href="/recordings" className="btn btn-secondary w-full justify-center">
-              <History className="h-4 w-4" />
-              Review Local Recordings
+            <Link href="/decks" className="btn btn-secondary w-full justify-center">
+              <Layers className="h-4 w-4" />
+              Manage Decks
             </Link>
           </FlowActions>
         </div>

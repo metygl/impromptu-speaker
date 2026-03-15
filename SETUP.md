@@ -6,7 +6,7 @@ Current state:
 - Localhost auth setup is in place
 - Google sign-in works locally
 - Production/domain setup is not done yet
-- Public email magic links are not set up yet
+- Public email magic links are not set up yet, and the demo login page stays Google-only
 
 ## Completed So Far
 
@@ -28,6 +28,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY
 OPENAI_API_KEY=...
 OPENAI_EVAL_MODEL=...
 DAILY_ANALYSIS_LIMIT=3
+DAILY_ANALYSIS_LIMIT_OVERRIDES=metygl@gmail.com:50
 MAX_TRANSCRIPT_CHARS=12000
 ```
 

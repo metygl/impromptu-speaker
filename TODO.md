@@ -27,11 +27,12 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [ ] Confirm Supabase `speech_feedback` gets a row
 - [ ] Confirm Supabase `analysis_attempts` gets a row
 - [ ] Confirm the daily limit blocks the 4th analysis attempt
+- [ ] Confirm `metygl@gmail.com` can analyze up to the 50-attempt override
 - [ ] Sign out and confirm anonymous users can still practice without AI feedback
 
 ## Local QA / Manual Checks
 
-- [ ] Test the persistent menu flow across home, setup, practice, recordings, decks, and feedback
+- [ ] Test the persistent menu flow across home, setup, practice, decks, and feedback
 - [ ] Test the new bottom-of-page CTA sections on mobile for spacing and scroll behavior
 - [ ] Test the first-time Whisper model download experience in Chrome
 - [ ] Test microphone permission denial flow
@@ -72,7 +73,8 @@ Current recommendation:
 
 ## Product / Code Cleanup
 
-- [x] Repurpose `/recordings` as the local-only review flow for saved recordings
+- [x] Keep `/recordings/[id]` as the active local recording detail flow
+- [x] Archive the standalone `/recordings` index from the main navigation
 - [x] Keep local audio accessible via browser-only saved recordings, not remote storage
 - [ ] Add tests for the authenticated analysis API route
 - [x] Add tests for the feedback delete API route

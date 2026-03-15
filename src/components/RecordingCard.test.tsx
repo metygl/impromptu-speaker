@@ -74,8 +74,7 @@ describe('RecordingCard', () => {
     const onClick = vi.fn();
     render(<RecordingCard recording={mockRecording} onClick={onClick} />);
 
-    const card = screen.getByText('Test Recording').closest('div[class*="rounded-xl"]');
-    fireEvent.click(card!);
+    fireEvent.click(screen.getByText('Test Recording'));
 
     expect(onClick).toHaveBeenCalled();
   });

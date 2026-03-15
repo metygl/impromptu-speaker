@@ -142,14 +142,21 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
         }),
       });
 
-      const data = await response.json();
+      const data: {
+        analysis?: Recording['analysis'];
+        error?: string;
+        feedbackId?: string;
+        transcript?: string;
+      } | null = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Analysis failed');
+        throw new Error(data?.error || 'Analysis failed');
       }
 
+      const normalizedTranscript = data?.transcript?.trim() || transcript;
+
       const nextUpdates = {
-        transcript,
+        transcript: normalizedTranscript,
         analysis: data.analysis,
         analyzedAt: new Date().toISOString(),
         feedbackId: data.feedbackId,

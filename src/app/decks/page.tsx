@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Layers, Trash2, ChevronRight, Lock, Mic } from 'lucide-react';
 import { FlowActions } from '@/components/FlowActions';
@@ -12,15 +12,10 @@ import { Deck } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 export default function DecksPage() {
-  const [customDecks, setCustomDecks] = useLocalStorage<Deck[]>('customDecks', []);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [customDecks, setCustomDecks, isHydrated] = useLocalStorage<Deck[]>('customDecks', []);
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [newDeckName, setNewDeckName] = useState('');
   const [deckToDelete, setDeckToDelete] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
 
   const handleCreateDeck = () => {
     if (!newDeckName.trim()) return;

@@ -25,6 +25,7 @@ Ship a public demo of Impromptu Speaker that:
 - Signed-in users can record locally during speeches
 - Signed-in users are prompted to name and save recordings locally after each speech
 - Saved local recordings can be replayed and analyzed from `/recordings/[id]`
+- The standalone `/recordings` index is archived for now; the main review loop runs through direct recording detail pages and `/feedback`
 - Signed-in users can transcribe locally and submit transcript-only analysis
 - Feedback history is available through `/feedback`
 - Feedback history is intentionally minimal; transcript and full analysis live on `/feedback/[id]`
@@ -48,6 +49,7 @@ Ship a public demo of Impromptu Speaker that:
   - `speech_feedback`
   - `analysis_attempts`
 - Daily quota enforced server-side via `reserve_analysis_attempt(...)`
+- Daily quota supports per-email overrides for demo/admin accounts
 
 ## What Is Done
 
@@ -55,10 +57,12 @@ Ship a public demo of Impromptu Speaker that:
 - Supabase server/browser clients added
 - Google sign-in working on localhost
 - Analysis endpoint replaced old local `codex exec` flow
+- Email-based analysis quota overrides added for selected accounts such as `metygl@gmail.com`
 - Feedback history pages added
 - Feedback detail page supports deleting saved remote feedback without deleting local audio
 - Main app navigation simplified to a persistent menu plus forward-flow page actions
 - Shared page-intro, section-card, and flow-action UI patterns added across setup, decks, recordings, and feedback
+- Standalone `/recordings` list removed from the main navigation and replaced with an archived fallback page
 - Privacy and terms pages added
 - Production build fixed to use webpack explicitly
 - Setup and testing trackers added in [SETUP.md](/Users/metygl/Projects/PlanProject/impromptu-speaker/SETUP.md) and [TODO.md](/Users/metygl/Projects/PlanProject/impromptu-speaker/TODO.md)

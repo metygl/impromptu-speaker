@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { ANALYSIS_PROMPT_VERSION, buildAnalysisInput, normalizeTranscript, parseAnalysisResponse } from '@/lib/analysis';
-import { assertServerRuntimeConfig } from '@/lib/env';
+import { ANALYSIS_PROMPT_VERSION, normalizeTranscript, parseAnalysisResponse } from '@/lib/analysis';
+import { buildAnalysisPrompt } from '@/lib/constants/prompts';
+import { assertServerRuntimeConfig, getDailyAnalysisLimitForEmail } from '@/lib/env';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 interface AnalyzeRequest {
@@ -85,7 +86,6 @@ export async function POST(request: Request) {
   let modelInvoked = false;
 
   try {
-    const config = assertServerRuntimeConfig();
     const supabase = await createSupabaseServerClient();
     const {
       data: { user },
@@ -100,6 +100,12 @@ export async function POST(request: Request) {
 
     const body: AnalyzeRequest = await request.json();
     const { transcript, topic, framework, frameworkId = null } = body;
+    const config = assertServerRuntimeConfig();
+    const dailyAnalysisLimit = getDailyAnalysisLimitForEmail(
+      user.email,
+      config.dailyAnalysisLimit,
+      config.dailyAnalysisLimitOverrides
+    );
 
     if (!transcript || !topic || !framework) {
       return NextResponse.json(
@@ -126,7 +132,7 @@ export async function POST(request: Request) {
       supabase,
       user.id,
       normalizedTranscript.transcript.length,
-      config.dailyAnalysisLimit
+      dailyAnalysisLimit
     );
 
     if (!reservation) {
@@ -146,7 +152,7 @@ export async function POST(request: Request) {
 
     const response = await client.responses.create({
       model: config.evalModel,
-      input: buildAnalysisInput(
+      input: buildAnalysisPrompt(
         normalizedTranscript.transcript,
         normalizedTopic,
         normalizedFramework

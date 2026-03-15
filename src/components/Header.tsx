@@ -103,13 +103,6 @@ export function Header({
                 New Practice
               </Link>
               <Link
-                href="/recordings"
-                onClick={() => setIsMenuOpen(false)}
-                className="block rounded-lg px-4 py-3 text-text-primary transition-colors hover:bg-bg-secondary"
-              >
-                Recordings
-              </Link>
-              <Link
                 href="/feedback"
                 onClick={() => setIsMenuOpen(false)}
                 className="block rounded-lg px-4 py-3 text-text-primary transition-colors hover:bg-bg-secondary"

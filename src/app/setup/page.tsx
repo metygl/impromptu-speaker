@@ -1,6 +1,4 @@
 'use client';
-
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play } from 'lucide-react';
 import { Header } from '@/components/Header';
@@ -22,17 +20,12 @@ const DEFAULT_SETTINGS: PracticeSettings = {
 
 export default function SetupPage() {
   const router = useRouter();
-  const [customDecks] = useLocalStorage<Deck[]>('customDecks', []);
-  const [settings, setSettings] = useLocalStorage<PracticeSettings>(
+  const [customDecks, , areDecksHydrated] = useLocalStorage<Deck[]>('customDecks', []);
+  const [settings, setSettings, areSettingsHydrated] = useLocalStorage<PracticeSettings>(
     'practiceSettings',
     DEFAULT_SETTINGS
   );
-
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+  const isHydrated = areDecksHydrated && areSettingsHydrated;
 
   const allDecks = [defaultDeck, ...customDecks];
 

@@ -123,7 +123,7 @@ export function FrameworkCard({
                       key={i}
                       className="rounded-md bg-white px-2 py-1 text-xs italic text-text-secondary shadow-sm"
                     >
-                      "{phrase}"
+                      &quot;{phrase}&quot;
                     </span>
                   ))}
                 </div>

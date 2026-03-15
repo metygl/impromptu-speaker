@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Recording, RecordingMetadata, SpeechAnalysis } from '../types';
+import { Recording } from '../types';
 import { useIndexedDB } from './useIndexedDB';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -38,27 +38,22 @@ interface UseVoiceRecordingsReturn {
 
 export function useVoiceRecordings(): UseVoiceRecordingsReturn {
   const [recordings, setRecordings, isLocalStorageHydrated] = useLocalStorage<Recording[]>(STORAGE_KEY, []);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
 
   const audioDb = useIndexedDB<Blob>({ storeName: 'recordings' });
 
   // Keep a ref to recordings for stable callbacks
   const recordingsRef = useRef(recordings);
-  recordingsRef.current = recordings;
+
+  useEffect(() => {
+    recordingsRef.current = recordings;
+  }, [recordings]);
 
   // Calculate total storage used
   const totalStorageUsed = recordings.reduce((total, rec) => total + rec.fileSize, 0);
 
-  // Mark as loaded when both IndexedDB and localStorage are ready
-  useEffect(() => {
-    if (audioDb.isReady && isLocalStorageHydrated) {
-      setIsLoading(false);
-    }
-    if (audioDb.error) {
-      setError(audioDb.error);
-    }
-  }, [audioDb.isReady, audioDb.error, isLocalStorageHydrated]);
+  const isLoading = !(audioDb.isReady && isLocalStorageHydrated);
+  const error = operationError ?? audioDb.error ?? null;
 
   const saveRecording = useCallback(
     async (blob: Blob, params: SaveRecordingParams): Promise<string> => {
@@ -88,7 +83,7 @@ export function useVoiceRecordings(): UseVoiceRecordingsReturn {
         return id;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to save recording';
-        setError(errorMessage);
+        setOperationError(errorMessage);
         throw new Error(errorMessage);
       }
     },
@@ -133,7 +128,7 @@ export function useVoiceRecordings(): UseVoiceRecordingsReturn {
         setRecordings((prev) => prev.filter((rec) => rec.id !== id));
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to delete recording';
-        setError(errorMessage);
+        setOperationError(errorMessage);
         throw new Error(errorMessage);
       }
     },
