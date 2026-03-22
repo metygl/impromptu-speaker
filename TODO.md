@@ -1,6 +1,6 @@
 # TODO
 
-Last updated: 2026-03-15
+Last updated: 2026-03-22
 
 This file tracks the next practical steps after the shared-demo/auth rollout.
 
@@ -23,6 +23,12 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [ ] Show objective metadata in practice, recording, and feedback surfaces where useful
 - [ ] Add content QA passes to remove prompt/framework pairings that feel forced or unrealistic
 - [ ] Decide whether to expose objective selection as a first-class setup step instead of inferring it from the chosen deck
+- [x] Surface deck-level framework compatibility on deck detail pages
+- [x] Allow signed-in users to customize built-in decks and reset them to seeded defaults
+- [x] Allow editable decks to change their allowed framework set
+- [x] Rework deck management so prompt editing and deck-level framework selection are clearly separated
+- [ ] QA the signed-in deck override flow on a second device or browser profile
+- [ ] Decide whether to surface a clearer “synced to your account” status on deck list cards
 
 ## Immediate Testing
 
@@ -53,6 +59,8 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 ## Local QA / Manual Checks
 
 - [ ] Test the persistent menu flow across home, setup, practice, decks, and feedback
+- [ ] Confirm `Home` is no longer shown in the slide-out menu
+- [ ] Confirm practice page `Change Deck` / setup-return actions behave well in prep, speech, and done states
 - [ ] Test the new bottom-of-page CTA sections on mobile for spacing and scroll behavior
 - [ ] Test the first-time Whisper model download experience in Chrome
 - [ ] Test microphone permission denial flow
@@ -60,6 +68,9 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [ ] Test behavior when transcript length exceeds `MAX_TRANSCRIPT_CHARS`
 - [ ] Test mobile layout on an actual phone
 - [ ] Test Safari if possible, especially browser audio/transcription compatibility
+- [ ] Confirm built-in deck reset restores seeded prompts after signed-in edits
+- [ ] Confirm anonymous custom decks stay local while signed-in deck edits sync remotely
+- [ ] Validate the redesigned Manage Decks flow on mobile and desktop, especially framework-card scanning and prompt editing
 
 ## Production / Domain Follow-Up
 
@@ -97,6 +108,7 @@ Current recommendation:
 - [x] Archive the standalone `/recordings` index from the main navigation
 - [x] Keep local audio accessible via browser-only saved recordings, not remote storage
 - [ ] Add tests for the authenticated analysis API route
+- [x] Add tests for the authenticated deck API routes
 - [x] Add tests for the feedback delete API route
 - [ ] Add tests for feedback history loading
 - [ ] Add tests for daily quota enforcement

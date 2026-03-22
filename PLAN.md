@@ -1,6 +1,6 @@
 # Plan
 
-Last updated: 2026-03-15
+Last updated: 2026-03-22
 
 This file is the current project-level plan and architecture summary for the shared demo.
 
@@ -31,6 +31,7 @@ Ship a public demo of Impromptu Speaker that:
 - Feedback history is available through `/feedback`
 - Feedback history is intentionally minimal; transcript and full analysis live on `/feedback/[id]`
 - Built-in practice content now uses multiple goal-focused decks with deck-level and topic-level framework compatibility
+- Signed-in users can customize built-in decks per account and reset them to the seeded default
 
 ### Auth
 
@@ -50,6 +51,7 @@ Ship a public demo of Impromptu Speaker that:
 - Supabase tables:
   - `speech_feedback`
   - `analysis_attempts`
+  - `user_decks`
 - Daily quota enforced server-side via `reserve_analysis_attempt(...)`
 - Daily quota supports per-email overrides for demo/admin accounts
 
@@ -204,6 +206,12 @@ Ship a public demo of Impromptu Speaker that:
 - Setup flow updated to filter frameworks by deck compatibility
 - Practice generation updated to respect both deck-level and topic-level framework rules
 - Goal-specific frameworks added for interview intros, networking, updates, self-advocacy, and difficult conversations
+- Menu overlay no longer routes back to `Home`
+- Practice page now includes a direct path back to setup for choosing a different deck
+- Deck detail pages now separate prompt editing from deck-level framework selection and show expandable framework guidance inline
+- Signed-in deck edits now persist remotely through `/api/decks`, while anonymous custom decks remain browser-local
+- Editable decks can now change their allowed framework set directly from the deck detail page
+- Topic-level framework overrides remain supported for seeded edge cases but are no longer presented as a primary authoring flow
 
 ## What Needs To Happen Next
 

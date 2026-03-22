@@ -26,8 +26,8 @@ export function FrameworkSelector({
     <SectionCard
       className={className}
       eyebrow="Step 2"
-      title="Frameworks"
-      description="Pick from the answer structures that fit this deck."
+      title="Answer structures"
+      description="Pick from the answer structures enabled for this deck."
       action={
         <button
           onClick={onSelectAll}
