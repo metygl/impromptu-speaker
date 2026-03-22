@@ -1,4 +1,4 @@
-import { Deck, Topic } from '../types';
+import { Deck, PersistedDeckRecord, Topic } from '../types';
 
 function createTopic(id: string, text: string, allowedFrameworkIds?: string[]): Topic {
   return {
@@ -237,6 +237,99 @@ export function isBuiltInDeckId(deckId: string): boolean {
 
 export function getAllDecks(customDecks: Deck[]): Deck[] {
   return [...builtInDecks, ...customDecks];
+}
+
+export function cloneTopic(topic: Topic): Topic {
+  return {
+    id: topic.id,
+    text: topic.text,
+    allowedFrameworkIds: topic.allowedFrameworkIds ? [...topic.allowedFrameworkIds] : undefined,
+  };
+}
+
+export function cloneDeck(deck: Deck): Deck {
+  return {
+    ...deck,
+    allowedFrameworkIds: deck.allowedFrameworkIds ? [...deck.allowedFrameworkIds] : undefined,
+    topics: deck.topics.map(cloneTopic),
+  };
+}
+
+export function createPersistedDeckRecord(deck: Deck): PersistedDeckRecord {
+  return {
+    deckId: deck.id,
+    builtInDeckId: deck.isBuiltIn ? deck.id : null,
+    name: deck.isBuiltIn ? null : deck.name,
+    description: deck.isBuiltIn ? null : deck.description ?? null,
+    objectiveId: deck.isBuiltIn ? null : deck.objectiveId ?? null,
+    objectiveLabel: deck.isBuiltIn ? null : deck.objectiveLabel ?? null,
+    allowedFrameworkIds: deck.allowedFrameworkIds ?? [],
+    topics: deck.topics.map(cloneTopic),
+  };
+}
+
+export function mapPersistedDeckRecord(record: PersistedDeckRecord): Deck {
+  const builtInDeck = record.builtInDeckId ? getBuiltInDeckById(record.builtInDeckId) : undefined;
+
+  if (builtInDeck) {
+    return {
+      ...cloneDeck(builtInDeck),
+      allowedFrameworkIds:
+        record.allowedFrameworkIds.length > 0
+          ? [...record.allowedFrameworkIds]
+          : builtInDeck.allowedFrameworkIds
+            ? [...builtInDeck.allowedFrameworkIds]
+            : undefined,
+      topics: record.topics.map(cloneTopic),
+    };
+  }
+
+  return {
+    id: record.deckId,
+    name: record.name ?? 'Untitled Deck',
+    description: record.description ?? undefined,
+    objectiveId: record.objectiveId ?? undefined,
+    objectiveLabel: record.objectiveLabel ?? undefined,
+    allowedFrameworkIds:
+      record.allowedFrameworkIds.length > 0 ? [...record.allowedFrameworkIds] : undefined,
+    topics: record.topics.map(cloneTopic),
+    isBuiltIn: false,
+  };
+}
+
+export function mergeDeckLibrary(records: PersistedDeckRecord[]): Deck[] {
+  const builtInOverrides = new Map<string, PersistedDeckRecord>();
+  const customDecks: Deck[] = [];
+
+  records.forEach((record) => {
+    if (record.builtInDeckId) {
+      builtInOverrides.set(record.builtInDeckId, record);
+      return;
+    }
+
+    customDecks.push(mapPersistedDeckRecord(record));
+  });
+
+  const effectiveBuiltIns = builtInDecks.map((deck) => {
+    const override = builtInOverrides.get(deck.id);
+
+    if (!override) {
+      return cloneDeck(deck);
+    }
+
+    return {
+      ...cloneDeck(deck),
+      allowedFrameworkIds:
+        override.allowedFrameworkIds.length > 0
+          ? [...override.allowedFrameworkIds]
+          : deck.allowedFrameworkIds
+            ? [...deck.allowedFrameworkIds]
+            : undefined,
+      topics: override.topics.map(cloneTopic),
+    };
+  });
+
+  return [...effectiveBuiltIns, ...customDecks];
 }
 
 export function getDeckAllowedFrameworkIds(deck: Deck, fallbackIds: string[]): string[] {

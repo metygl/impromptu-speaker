@@ -22,6 +22,17 @@ export interface Topic {
   allowedFrameworkIds?: string[];
 }
 
+export interface PersistedDeckRecord {
+  deckId: string;
+  builtInDeckId: string | null;
+  name: string | null;
+  description: string | null;
+  objectiveId: string | null;
+  objectiveLabel: string | null;
+  allowedFrameworkIds: string[];
+  topics: Topic[];
+}
+
 export interface Deck {
   id: string;
   name: string;
