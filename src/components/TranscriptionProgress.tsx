@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Loader2, Download, FileAudio, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface TranscriptionProgressProps {
-  status: 'idle' | 'loading-model' | 'transcribing' | 'complete' | 'error';
+  status: 'idle' | 'loading-model' | 'preparing-audio' | 'transcribing' | 'complete' | 'error';
   modelProgress?: number;
   transcriptionProgress?: number;
   message?: string;
@@ -24,6 +24,8 @@ export function TranscriptionProgress({
     switch (status) {
       case 'loading-model':
         return <Download className="h-5 w-5 text-accent" />;
+      case 'preparing-audio':
+        return <FileAudio className="h-5 w-5 text-accent" />;
       case 'transcribing':
         return <FileAudio className="h-5 w-5 text-accent" />;
       case 'complete':
@@ -50,7 +52,7 @@ export function TranscriptionProgress({
       <div className="flex items-center gap-3">
         {/* Icon */}
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white">
-          {status === 'loading-model' || status === 'transcribing' ? (
+          {status === 'loading-model' || status === 'preparing-audio' || status === 'transcribing' ? (
             <Loader2 className="h-5 w-5 animate-spin text-accent" />
           ) : (
             getIcon()
