@@ -1,6 +1,6 @@
 # TODO
 
-Last updated: 2026-03-22
+Last updated: 2026-03-27
 
 This file tracks the next practical steps after the shared-demo/auth rollout.
 
@@ -35,6 +35,13 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [x] Add `OPENAI_API_KEY` to `.env.local`
 - [x] Add `OPENAI_EVAL_MODEL` to `.env.local`
 - [x] Restart `npm run dev` after env changes
+- [ ] Set `NEXT_PUBLIC_APP_URL` in Vercel for the production domain
+- [ ] Set `NEXT_PUBLIC_SUPABASE_URL` in Vercel
+- [ ] Set `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Vercel
+- [ ] Set `OPENAI_API_KEY` in Vercel
+- [ ] Set `OPENAI_EVAL_MODEL=gpt-5-mini` in Vercel
+- [ ] Redeploy after the Vercel env updates
+- [ ] Confirm `/login` no longer shows the "Supabase auth is not configured yet" banner in production
 - [ ] Sign in with Google locally
 - [ ] Confirm signed-in UI appears in the header/menu
 - [ ] Run a full practice session while signed in
@@ -43,6 +50,9 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [ ] Confirm saving locally redirects to `/recordings/[id]`
 - [ ] Confirm local playback works on the recording detail page
 - [ ] Confirm local transcription runs after clicking `Transcribe & Analyze` on `/recordings/[id]`
+- [ ] Confirm iPhone/iPad `/recordings/[id]` uploads audio transiently and completes analysis without crashing after tapping `Transcribe & Analyze`
+- [ ] Confirm oversized audio is rejected before transcription on the server path
+- [ ] Confirm over-long audio is rejected before transcription on the server path
 - [ ] Confirm AI analysis completes successfully
 - [ ] Confirm the recording detail page links to saved feedback or `/feedback/[id]`
 - [ ] Confirm the new result appears in `/feedback`
@@ -67,7 +77,7 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [ ] Test analysis failure messaging when OpenAI env vars are missing or invalid
 - [ ] Test behavior when transcript length exceeds `MAX_TRANSCRIPT_CHARS`
 - [ ] Test mobile layout on an actual phone
-- [ ] Test Safari if possible, especially browser audio/transcription compatibility
+- [ ] Test Safari if possible, especially the iPhone/iPad server transcription path and browser audio compatibility
 - [ ] Confirm built-in deck reset restores seeded prompts after signed-in edits
 - [ ] Confirm anonymous custom decks stay local while signed-in deck edits sync remotely
 - [ ] Validate the redesigned Manage Decks flow on mobile and desktop, especially framework-card scanning and prompt editing
@@ -81,6 +91,8 @@ This file tracks the next practical steps after the shared-demo/auth rollout.
 - [ ] Add preview redirect URLs for Vercel if needed
 - [ ] Add the production origin in Google OAuth
 - [ ] Re-test Google sign-in against the production domain
+- [ ] Re-test transcript analysis in production with `OPENAI_EVAL_MODEL=gpt-5-mini`
+- [ ] Re-test iPhone/iPad transcript analysis in production with transient server transcription enabled
 
 ## Auth / Email Decision
 
@@ -107,7 +119,7 @@ Current recommendation:
 - [x] Keep `/recordings/[id]` as the active local recording detail flow
 - [x] Archive the standalone `/recordings` index from the main navigation
 - [x] Keep local audio accessible via browser-only saved recordings, not remote storage
-- [ ] Add tests for the authenticated analysis API route
+- [x] Add tests for the authenticated analysis API route
 - [x] Add tests for the authenticated deck API routes
 - [x] Add tests for the feedback delete API route
 - [ ] Add tests for feedback history loading
@@ -124,3 +136,4 @@ Current recommendation:
 - [ ] Clean up existing lint errors/warnings in legacy files
 - [ ] Revisit older local-storage hydration patterns flagged by ESLint
 - [ ] Revisit old recording/audio hooks that are no longer central to the shared-demo flow
+- [ ] Decide whether mobile transcription should keep using the current transient server upload flow or move to a native wrapper later

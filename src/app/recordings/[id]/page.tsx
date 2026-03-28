@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { FrameworkCard } from '@/components/FrameworkCard';
 import { SpeechAnalysisView } from '@/components/SpeechAnalysisView';
 import { TranscriptionProgress } from '@/components/TranscriptionProgress';
 import { useAuth } from '@/components/AuthProvider';
+import { getFrameworkById } from '@/lib/data/frameworks';
 import { useVoiceRecordings } from '@/lib/hooks/useVoiceRecordings';
 import { useTranscription } from '@/lib/hooks/useTranscription';
 import { Recording } from '@/lib/types';
@@ -52,7 +54,11 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
   const { user } = useAuth();
   const { recordings, getRecording, deleteRecording, updateRecording, isLoading: isHookLoading } =
     useVoiceRecordings();
-  const { transcribe, progress: transcriptionProgress } = useTranscription();
+  const {
+    transcribe,
+    progress: transcriptionProgress,
+    isSupported: isTranscriptionSupported,
+  } = useTranscription();
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -65,6 +71,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
     'idle' | 'transcribing' | 'analyzing' | 'complete' | 'error'
   >('idle');
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const isRemoteTranscription = Boolean(user) && !isTranscriptionSupported;
 
   useEffect(() => {
     if (isHookLoading) return;
@@ -123,6 +130,55 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
     setAnalysisStep('transcribing');
 
     try {
+      if (isRemoteTranscription) {
+        const formData = new FormData();
+        formData.append(
+          'audio',
+          audioBlob,
+          `${recording.name.trim().replace(/\s+/g, '-').toLowerCase() || 'recording'}.webm`
+        );
+        formData.append('topic', recording.topicText);
+        formData.append('framework', recording.frameworkName);
+        formData.append('durationSeconds', String(recording.durationSeconds));
+
+        if (recording.frameworkId) {
+          formData.append('frameworkId', recording.frameworkId);
+        }
+
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data: {
+          analysis?: Recording['analysis'];
+          error?: string;
+          feedbackId?: string;
+          transcript?: string;
+        } | null = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(data?.error || 'Analysis failed');
+        }
+
+        const transcript = data?.transcript?.trim();
+        if (!transcript) {
+          throw new Error('Analysis returned an empty transcript');
+        }
+
+        const nextUpdates = {
+          transcript,
+          analysis: data?.analysis,
+          analyzedAt: new Date().toISOString(),
+          feedbackId: data?.feedbackId,
+        };
+
+        await updateRecording(id, nextUpdates);
+        setRecording((current) => (current ? { ...current, ...nextUpdates } : current));
+        setAnalysisStep('complete');
+        return;
+      }
+
       const transcript = await transcribe(audioBlob);
       const transcriptUpdates = { transcript };
 
@@ -209,6 +265,7 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
 
   const hasAnalysis = Boolean(recording.analysis);
   const hasTranscript = Boolean(recording.transcript);
+  const selectedFramework = getFrameworkById(recording.frameworkId);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -247,6 +304,10 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
             </div>
           </div>
 
+          {selectedFramework ? (
+            <FrameworkCard framework={selectedFramework} className="mt-6" />
+          ) : null}
+
           {audioUrl ? (
             <div className="mt-6 rounded-2xl border border-border bg-white p-5">
               <AudioPlayer url={audioUrl} />
@@ -258,12 +319,19 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
               {isAnalyzing ? (
                 <div>
                   {analysisStep === 'transcribing' ? (
-                    <TranscriptionProgress
-                      status={transcriptionProgress.status}
-                      modelProgress={transcriptionProgress.modelProgress}
-                      transcriptionProgress={transcriptionProgress.transcriptionProgress}
-                      message={transcriptionProgress.message}
-                    />
+                    isRemoteTranscription ? (
+                      <TranscriptionProgress
+                        status="preparing-audio"
+                        message="Uploading and transcribing audio on the server..."
+                      />
+                    ) : (
+                      <TranscriptionProgress
+                        status={transcriptionProgress.status}
+                        modelProgress={transcriptionProgress.modelProgress}
+                        transcriptionProgress={transcriptionProgress.transcriptionProgress}
+                        message={transcriptionProgress.message}
+                      />
+                    )
                   ) : (
                     <TranscriptionProgress
                       status="transcribing"
@@ -289,14 +357,22 @@ export default function RecordingDetailPage({ params }: RecordingDetailPageProps
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || !audioBlob}
-                  className="btn btn-primary w-full justify-center"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {isAnalyzing ? 'Analyzing...' : 'Transcribe & Analyze'}
-                </button>
+                <>
+                  {isRemoteTranscription ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                      iPhone and iPad use transient server transcription so your recording can still be
+                      analyzed. Audio is not stored on the server.
+                    </div>
+                  ) : null}
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || !audioBlob}
+                    className="btn btn-primary w-full justify-center"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {isAnalyzing ? 'Analyzing...' : 'Transcribe & Analyze'}
+                  </button>
+                </>
               )}
             </div>
           ) : null}

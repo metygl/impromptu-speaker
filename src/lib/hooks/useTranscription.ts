@@ -3,10 +3,10 @@
 import { useState, useCallback } from 'react';
 
 // Whisper model configuration
-const MODEL_ID = 'Xenova/whisper-small';
+const MODEL_ID = 'Xenova/whisper-tiny.en';
 
 interface TranscriptionProgress {
-  status: 'idle' | 'loading-model' | 'transcribing' | 'complete' | 'error';
+  status: 'idle' | 'loading-model' | 'preparing-audio' | 'transcribing' | 'complete' | 'error';
   modelProgress?: number; // 0-100 for model download
   transcriptionProgress?: number; // 0-100 for transcription
   message?: string;
@@ -17,6 +17,8 @@ interface UseTranscriptionReturn {
   progress: TranscriptionProgress;
   isModelLoaded: boolean;
   error: string | null;
+  isSupported: boolean;
+  unsupportedReason: string | null;
 }
 
 interface ModelLoadProgress {
@@ -45,13 +47,58 @@ type Transcriber = (
   options: TranscriberOptions
 ) => Promise<TranscriptionResponse>;
 
+interface TranscriptionSupport {
+  isSupported: boolean;
+  reason: string | null;
+}
+
+interface NavigatorSupportInput {
+  userAgent?: string;
+  platform?: string;
+  maxTouchPoints?: number;
+}
+
 // Singleton for the transcriber pipeline to avoid reloading the model
 let transcriberPromise: Promise<Transcriber> | null = null;
+
+function yieldToBrowser() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+
+export function getLocalTranscriptionSupport(
+  navigatorInput?: NavigatorSupportInput
+): TranscriptionSupport {
+  const currentNavigator =
+    navigatorInput ?? (typeof navigator !== 'undefined' ? navigator : undefined);
+
+  if (!currentNavigator) {
+    return { isSupported: true, reason: null };
+  }
+
+  const userAgent = currentNavigator.userAgent?.toLowerCase() ?? '';
+  const platform = currentNavigator.platform?.toLowerCase() ?? '';
+  const maxTouchPoints = currentNavigator.maxTouchPoints ?? 0;
+  const isIOS =
+    /iphone|ipad|ipod/.test(userAgent) || (platform === 'macintel' && maxTouchPoints > 1);
+
+  if (isIOS) {
+    return {
+      isSupported: false,
+      reason:
+        'Local transcription is currently unavailable on iPhone and iPad because those browsers can crash while loading the on-device speech model. Your recording is still saved locally on this device.',
+    };
+  }
+
+  return { isSupported: true, reason: null };
+}
 
 export function useTranscription(): UseTranscriptionReturn {
   const [progress, setProgress] = useState<TranscriptionProgress>({ status: 'idle' });
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const support = getLocalTranscriptionSupport();
 
   const loadModel = useCallback(async () => {
     if (transcriberPromise) {
@@ -59,6 +106,7 @@ export function useTranscription(): UseTranscriptionReturn {
     }
 
     setProgress({ status: 'loading-model', modelProgress: 0, message: 'Loading Whisper model...' });
+    await yieldToBrowser();
 
     try {
       // Dynamic import to avoid SSR issues
@@ -68,26 +116,37 @@ export function useTranscription(): UseTranscriptionReturn {
       // Configure to load models from HuggingFace Hub, not locally
       env.allowLocalModels = false;
       env.useBrowserCache = true;
+      const createPipeline = (useProxy: boolean) => {
+        env.backends.onnx.wasm.proxy = useProxy;
 
-      transcriberPromise = pipeline('automatic-speech-recognition', MODEL_ID, {
-        progress_callback: (progressData: ModelLoadProgress) => {
-          // Defensive check for progress data
-          if (progressData && typeof progressData === 'object' && progressData.status === 'progress') {
-            const loaded = progressData.loaded ?? 0;
-            const total = progressData.total ?? 1;
-            const percent = Math.round((loaded / total) * 100);
-            setProgress({
-              status: 'loading-model',
-              modelProgress: percent,
-              message: `Downloading model: ${percent}%`,
-            });
-          }
-        },
-      });
+        return pipeline('automatic-speech-recognition', MODEL_ID, {
+          progress_callback: (progressData: ModelLoadProgress) => {
+            if (progressData && typeof progressData === 'object' && progressData.status === 'progress') {
+              const loaded = progressData.loaded ?? 0;
+              const total = progressData.total ?? 1;
+              const percent = Math.round((loaded / total) * 100);
+              setProgress({
+                status: 'loading-model',
+                modelProgress: percent,
+                message: `Downloading model: ${percent}%`,
+              });
+            }
+          },
+        });
+      };
 
-      const transcriber = await transcriberPromise;
-      setIsModelLoaded(true);
-      return transcriber;
+      try {
+        transcriberPromise = createPipeline(true);
+        const transcriber = await transcriberPromise;
+        setIsModelLoaded(true);
+        return transcriber;
+      } catch (proxyError) {
+        console.warn('[Transcription] Worker proxy unavailable, falling back to main thread.', proxyError);
+        transcriberPromise = createPipeline(false);
+        const transcriber = await transcriberPromise;
+        setIsModelLoaded(true);
+        return transcriber;
+      }
     } catch (err) {
       transcriberPromise = null;
       const errorMessage = err instanceof Error ? err.message : 'Failed to load transcription model';
@@ -102,6 +161,16 @@ export function useTranscription(): UseTranscriptionReturn {
       setError(null);
 
       try {
+        const transcriptionSupport = getLocalTranscriptionSupport();
+
+        if (!transcriptionSupport.isSupported) {
+          const errorMessage =
+            transcriptionSupport.reason ?? 'Local transcription is not supported on this device.';
+          setError(errorMessage);
+          setProgress({ status: 'error', message: errorMessage });
+          throw new Error(errorMessage);
+        }
+
         // Validate the audio blob
         if (!audioBlob || !(audioBlob instanceof Blob)) {
           throw new Error('Invalid audio blob provided');
@@ -117,11 +186,15 @@ export function useTranscription(): UseTranscriptionReturn {
           throw new Error('Failed to load transcription model');
         }
 
-        setProgress({ status: 'transcribing', transcriptionProgress: 0, message: 'Processing audio...' });
+        setProgress({
+          status: 'preparing-audio',
+          transcriptionProgress: 0,
+          message: 'Preparing audio for transcription...',
+        });
+        await yieldToBrowser();
 
         // Convert blob to array buffer
         const arrayBuffer = await audioBlob.arrayBuffer();
-        console.log('[Transcription] ArrayBuffer size:', arrayBuffer.byteLength);
 
         if (arrayBuffer.byteLength === 0) {
           throw new Error('Audio buffer is empty');
@@ -137,12 +210,6 @@ export function useTranscription(): UseTranscriptionReturn {
           await audioContext.close();
           throw new Error(`Failed to decode audio: ${decodeErr instanceof Error ? decodeErr.message : 'Unknown error'}`);
         }
-
-        console.log('[Transcription] Decoded audio:', {
-          duration: audioBuffer.duration,
-          sampleRate: audioBuffer.sampleRate,
-          channels: audioBuffer.numberOfChannels,
-        });
 
         // Get the audio data as Float32Array (mono, 16kHz)
         let audioData: Float32Array;
@@ -165,9 +232,11 @@ export function useTranscription(): UseTranscriptionReturn {
           throw new Error('Processed audio data is empty');
         }
 
-        console.log('[Transcription] Audio data length:', audioData.length);
-
-        setProgress({ status: 'transcribing', message: 'Transcribing audio... (this may take a minute)' });
+        setProgress({
+          status: 'transcribing',
+          message: 'Transcribing audio locally... this may take a minute.',
+        });
+        await yieldToBrowser();
 
         // Transcribe the audio
         const result = await transcriber(audioData, {
@@ -180,12 +249,10 @@ export function useTranscription(): UseTranscriptionReturn {
             // Update progress message to show activity
             setProgress({
               status: 'transcribing',
-              message: 'Transcribing audio... (processing)'
+              message: 'Transcribing audio locally...'
             });
           },
         });
-
-        console.log('[Transcription] Result:', result);
 
         const transcriptText = Array.isArray(result)
           ? result
@@ -217,5 +284,7 @@ export function useTranscription(): UseTranscriptionReturn {
     progress,
     isModelLoaded,
     error,
+    isSupported: support.isSupported,
+    unsupportedReason: support.reason,
   };
 }

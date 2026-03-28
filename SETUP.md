@@ -7,6 +7,7 @@ Current state:
 - Google sign-in works locally
 - Production/domain setup is not done yet
 - Public email magic links are not set up yet, and the demo login page stays Google-only
+- Desktop recording detail uses local Whisper transcription; iPhone/iPad falls back to transient server transcription for analysis
 
 ## Completed So Far
 
@@ -26,10 +27,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY
 OPENAI_API_KEY=...
-OPENAI_EVAL_MODEL=...
+OPENAI_EVAL_MODEL=gpt-5-mini
+OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
 DAILY_ANALYSIS_LIMIT=3
 DAILY_ANALYSIS_LIMIT_OVERRIDES=metygl@gmail.com:50
 MAX_TRANSCRIPT_CHARS=12000
+MAX_AUDIO_UPLOAD_BYTES=10000000
+MAX_AUDIO_DURATION_SECONDS=300
 ```
 
 ### Supabase Database
@@ -38,8 +42,13 @@ MAX_TRANSCRIPT_CHARS=12000
 - [x] Ran the schema in [supabase/schema.sql](/Users/metygl/Projects/PlanProject/impromptu-speaker/supabase/schema.sql)
 - [x] Created `speech_feedback`
 - [x] Created `analysis_attempts`
+- [x] Created `user_decks`
 - [x] Created `reserve_analysis_attempt(...)`
 - [x] Enabled row-level security and created the app policies in the schema
+
+Important:
+- If your Supabase project already had the earlier schema, re-run [supabase/schema.sql](/Users/metygl/Projects/PlanProject/impromptu-speaker/supabase/schema.sql) to migrate `speech_feedback.overall_score` from `integer` to `numeric(3,1)`.
+- Re-run [supabase/schema.sql](/Users/metygl/Projects/PlanProject/impromptu-speaker/supabase/schema.sql) after pulling the latest changes so `user_decks`, its RLS policies, and the `set_updated_at()` trigger function exist locally.
 
 ### Supabase Auth Configuration
 
@@ -100,11 +109,14 @@ https://<project-ref>.supabase.co/auth/v1/callback
 - [ ] Confirm a row is written to `analysis_attempts`
 - [ ] Confirm feedback appears in `/feedback`
 - [ ] Confirm daily analysis limit enforcement
+- [ ] Confirm signed-in deck edits persist across refresh
+- [ ] Confirm built-in deck reset removes the override and restores seeded prompts
 
 ### Required Before AI Analysis Can Work
 
 - [ ] Set `OPENAI_API_KEY` in `.env.local`
-- [ ] Set `OPENAI_EVAL_MODEL` in `.env.local`
+- [ ] Set `OPENAI_EVAL_MODEL` in `.env.local` to `gpt-5-mini`
+- [ ] Optionally set `OPENAI_TRANSCRIBE_MODEL`, `MAX_AUDIO_UPLOAD_BYTES`, and `MAX_AUDIO_DURATION_SECONDS` if you want to override the mobile transcription defaults
 - [ ] Restart the dev server after changing env vars
 
 ## Intentionally Deferred

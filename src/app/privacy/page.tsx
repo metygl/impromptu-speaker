@@ -13,7 +13,10 @@ export default function PrivacyPage() {
               Anonymous visitors can use the app without recording or AI analysis.
             </p>
             <p>
-              Signed-in users record audio locally in their browser. Audio is not uploaded to the server for the shared demo.
+              Signed-in users record audio locally in their browser. On desktop, audio stays local.
+              On iPhone and iPad, requesting AI feedback uploads audio transiently for
+              transcription so the browser does not have to load the speech model locally.
+              The app does not store raw audio on the server.
             </p>
             <p>
               When you request AI feedback, the app stores the transcript, evaluation, topic, framework, and usage metadata so you can revisit feedback later and so daily limits can be enforced.

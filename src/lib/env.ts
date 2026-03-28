@@ -1,5 +1,8 @@
 const DEFAULT_DAILY_ANALYSIS_LIMIT = 3;
 const DEFAULT_MAX_TRANSCRIPT_CHARS = 12000;
+const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe';
+const DEFAULT_MAX_AUDIO_UPLOAD_BYTES = 10_000_000;
+const DEFAULT_MAX_AUDIO_DURATION_SECONDS = 300;
 const DEFAULT_DAILY_ANALYSIS_LIMIT_OVERRIDES: Record<string, number> = {
   'metygl@gmail.com': 50,
 };
@@ -77,6 +80,15 @@ export function getServerRuntimeConfig() {
     supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
     openAiApiKey: process.env.OPENAI_API_KEY ?? '',
     evalModel: process.env.OPENAI_EVAL_MODEL ?? '',
+    transcriptionModel: process.env.OPENAI_TRANSCRIBE_MODEL ?? DEFAULT_TRANSCRIPTION_MODEL,
+    maxAudioUploadBytes: parsePositiveInteger(
+      process.env.MAX_AUDIO_UPLOAD_BYTES,
+      DEFAULT_MAX_AUDIO_UPLOAD_BYTES
+    ),
+    maxAudioDurationSeconds: parsePositiveInteger(
+      process.env.MAX_AUDIO_DURATION_SECONDS,
+      DEFAULT_MAX_AUDIO_DURATION_SECONDS
+    ),
     dailyAnalysisLimit: parsePositiveInteger(
       process.env.DAILY_ANALYSIS_LIMIT,
       DEFAULT_DAILY_ANALYSIS_LIMIT

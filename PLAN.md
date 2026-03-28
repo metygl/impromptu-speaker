@@ -1,6 +1,6 @@
 # Plan
 
-Last updated: 2026-03-22
+Last updated: 2026-03-27
 
 This file is the current project-level plan and architecture summary for the shared demo.
 
@@ -10,7 +10,7 @@ Ship a public demo of Impromptu Speaker that:
 
 - allows anonymous users to practice with decks, frameworks, and timers
 - requires sign-in for recording, transcript analysis, and saved feedback
-- keeps audio local to the browser
+- keeps desktop audio local to the browser while allowing transient mobile uploads for transcription
 - stores transcript, evaluation, and quota records remotely
 - keeps infrastructure and operating cost low
 - shifts built-in practice content toward concrete worker goals instead of generic prompts
@@ -37,14 +37,18 @@ Ship a public demo of Impromptu Speaker that:
 
 - Supabase Auth
 - Google sign-in enabled locally
+- Production auth depends on Vercel public Supabase env vars plus matching Supabase auth URL configuration
 - Magic-link email intentionally deferred until a real domain and SMTP provider exist
 
 ### Speech Processing
 
 - Audio recording: browser `MediaRecorder`
 - Audio storage: local browser only
-- Transcription: local Whisper via `@xenova/transformers`
+- Transcription: desktop browsers use local Whisper via `@xenova/transformers` with `Xenova/whisper-tiny.en`
+- iPhone and iPad browsers use transient server-side transcription so the app can still analyze speech without crashing WebKit
+- Server transcription is capped by upload size and audio duration limits
 - Evaluation: server-side OpenAI call using transcript text only
+- Current recommended evaluation model: `gpt-5-mini`
 
 ### Data Storage
 
@@ -212,13 +216,23 @@ Ship a public demo of Impromptu Speaker that:
 - Signed-in deck edits now persist remotely through `/api/decks`, while anonymous custom decks remain browser-local
 - Editable decks can now change their allowed framework set directly from the deck detail page
 - Topic-level framework overrides remain supported for seeded edge cases but are no longer presented as a primary authoring flow
+- Production build regressions from missing deck-library files and save-recording modal prop drift were fixed on `main`
+- Recording detail now uses transient server transcription on iPhone/iPad instead of starting local Whisper there
 
 ## What Needs To Happen Next
 
 ### Immediate
 
-- Add real OpenAI env vars locally
-- Test the end-to-end signed-in analysis flow
+- Set production Vercel env vars:
+  - `NEXT_PUBLIC_APP_URL`
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `OPENAI_API_KEY`
+  - `OPENAI_EVAL_MODEL=gpt-5-mini`
+- Update Supabase auth URL configuration for the production domain and `/auth/callback`
+- Redeploy and verify the login page no longer shows the "Supabase auth is not configured yet" banner
+- Test the end-to-end signed-in analysis flow in production
+- Confirm iPhone/iPad recording detail uploads audio transiently and completes analysis without crashing the tab
 - Verify Supabase rows are written correctly
 - Verify daily quota behavior
 - Manually validate the new menu-first navigation flow on mobile
@@ -245,7 +259,7 @@ Ship a public demo of Impromptu Speaker that:
 
 - Keep anonymous practice available without auth
 - Require auth only for AI-related features
-- Keep audio local; do not upload audio for the demo
+- Keep desktop audio local; allow transient iPhone/iPad uploads for transcription without storing raw audio
 - Store local recordings only in browser storage, not in Supabase
 - Use transcript-only evaluation to reduce cost
 - Use a configurable global daily limit, default `3`
