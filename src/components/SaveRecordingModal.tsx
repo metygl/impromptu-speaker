@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Save, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +10,8 @@ interface SaveRecordingModalProps {
   frameworkName: string;
   duration: number; // seconds
   defaultName?: string;
-  onSave: (name: string) => void;
+  error?: string | null;
+  onSave: (name: string) => void | Promise<void>;
   onDiscard: () => void;
 }
 
@@ -20,11 +21,19 @@ export function SaveRecordingModal({
   frameworkName,
   duration,
   defaultName = 'Untitled',
+  error = null,
   onSave,
   onDiscard,
 }: SaveRecordingModalProps) {
   const [name, setName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setName('');
+    setIsSaving(false);
+  }, [defaultName, isOpen]);
 
   if (!isOpen) return null;
 
@@ -35,8 +44,11 @@ export function SaveRecordingModal({
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Pass the name to parent - parent will use defaultName if empty
-    onSave(name);
+    try {
+      await onSave(name);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -96,6 +108,12 @@ export function SaveRecordingModal({
             autoFocus
           />
         </div>
+
+        {error ? (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
 
         {/* Actions */}
         <div className="mt-6 flex gap-3">
