@@ -26,8 +26,10 @@ export function useTimer({
   const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const deadlineRef = useRef<number | null>(null);
   const onCompleteRef = useRef(onComplete);
   const onTickRef = useRef(onTick);
+  const remainingSecondsRef = useRef(remainingSeconds);
 
   // Update refs when callbacks change
   useEffect(() => {
@@ -35,44 +37,81 @@ export function useTimer({
     onTickRef.current = onTick;
   }, [onComplete, onTick]);
 
+  useEffect(() => {
+    remainingSecondsRef.current = remainingSeconds;
+  }, [remainingSeconds]);
+
+  const syncRemainingSeconds = useCallback(() => {
+    if (deadlineRef.current === null) {
+      return remainingSecondsRef.current;
+    }
+
+    return Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000));
+  }, []);
+
   // Timer logic
   useEffect(() => {
-    if (isRunning && remainingSeconds > 0) {
-      intervalRef.current = setInterval(() => {
-        setRemainingSeconds((prev) => {
-          const newValue = prev - 1;
-          onTickRef.current?.(newValue);
+    if (!isRunning || remainingSecondsRef.current <= 0) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
 
-          if (newValue <= 0) {
-            setIsRunning(false);
-            onCompleteRef.current?.();
-            return 0;
-          }
-          return newValue;
-        });
-      }, 1000);
+      return;
     }
+
+    const tick = () => {
+      const nextValue = syncRemainingSeconds();
+
+      if (nextValue !== remainingSecondsRef.current) {
+        remainingSecondsRef.current = nextValue;
+        setRemainingSeconds(nextValue);
+        onTickRef.current?.(nextValue);
+      }
+
+      if (nextValue <= 0) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        deadlineRef.current = null;
+        setIsRunning(false);
+        onCompleteRef.current?.();
+      }
+    };
+
+    tick();
+    intervalRef.current = setInterval(tick, 250);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [isRunning, remainingSeconds]);
+  }, [isRunning, syncRemainingSeconds]);
 
   const start = useCallback(() => {
-    if (remainingSeconds > 0) {
+    if (remainingSecondsRef.current > 0) {
+      deadlineRef.current = Date.now() + remainingSecondsRef.current * 1000;
       setIsRunning(true);
     }
-  }, [remainingSeconds]);
-
-  const pause = useCallback(() => {
-    setIsRunning(false);
   }, []);
 
-  const reset = useCallback((newSeconds?: number) => {
+  const pause = useCallback(() => {
+    const nextValue = syncRemainingSeconds();
+    deadlineRef.current = null;
+    remainingSecondsRef.current = nextValue;
+    setRemainingSeconds(nextValue);
     setIsRunning(false);
-    setRemainingSeconds(newSeconds ?? initialSeconds);
+  }, [syncRemainingSeconds]);
+
+  const reset = useCallback((newSeconds?: number) => {
+    const nextValue = newSeconds ?? initialSeconds;
+    deadlineRef.current = null;
+    remainingSecondsRef.current = nextValue;
+    setIsRunning(false);
+    setRemainingSeconds(nextValue);
   }, [initialSeconds]);
 
   const formatTime = useCallback(() => {
